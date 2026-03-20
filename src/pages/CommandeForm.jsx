@@ -11,23 +11,27 @@ export function CommandeForm() {
   const { pressing } = useAuth();
   const { showSuccess, showError } = useNotification();
 
-  const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  const [searchClient, setSearchClient] = useState('');
+
+  // Client - recherche par téléphone
+  const [telephone, setTelephone] = useState('');
+  const [clientNom, setClientNom] = useState('');
+  const [clientTrouve, setClientTrouve] = useState(null); // null = pas cherché, false = pas trouvé, object = trouvé
+  const [searchingClient, setSearchingClient] = useState(false);
 
   // Selection articles
   const [lignes, setLignes] = useState([]);
   const [selectedCategorie, setSelectedCategorie] = useState('basiques');
-  const [showArticleSelector, setShowArticleSelector] = useState(false);
+  const [showArticleSelector, setShowArticleSelector] = useState(true); // Ouvert par défaut
   const [categories, setCategories] = useState([]);
   const [articles, setArticles] = useState([]);
+  const [searchArticle, setSearchArticle] = useState(''); // Recherche articles
 
   useEffect(() => {
     if (pressing?.id) {
-      loadClients();
       loadTarifs();
       if (isEdit) {
         loadCommande();
@@ -51,26 +55,89 @@ export function CommandeForm() {
     }
   }
 
-  async function loadClients() {
+  // Recherche client par téléphone
+  async function rechercherClient(tel) {
+    if (!tel || tel.length < 4) {
+      setClientTrouve(null);
+      setSelectedClientId('');
+      return;
+    }
+
+    setSearchingClient(true);
     try {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('pressing_id', pressing.id)
-        .order('nom');
+        .eq('telephone', tel)
+        .single();
 
-      if (error) throw error;
-      setClients(data || []);
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setClientTrouve(data);
+        setSelectedClientId(data.id);
+        setClientNom(data.nom || '');
+      } else {
+        setClientTrouve(false);
+        setSelectedClientId('');
+      }
     } catch (err) {
-      console.error('Erreur chargement clients:', err);
+      console.error('Erreur recherche client:', err);
+      setClientTrouve(false);
+      setSelectedClientId('');
+    } finally {
+      setSearchingClient(false);
     }
   }
+
+  // Créer un nouveau client
+  async function creerClient() {
+    if (!telephone) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          pressing_id: pressing.id,
+          telephone: telephone,
+          nom: clientNom || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setClientTrouve(data);
+      setSelectedClientId(data.id);
+      showSuccess('Client créé');
+      return data;
+    } catch (err) {
+      console.error('Erreur création client:', err);
+      if (err.code === '23505') {
+        showError('Ce numéro existe déjà');
+      } else {
+        showError('Erreur lors de la création du client');
+      }
+      return null;
+    }
+  }
+
+  // Debounce pour la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (telephone && pressing?.id) {
+        rechercherClient(telephone);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [telephone, pressing?.id]);
 
   async function loadCommande() {
     try {
       const { data, error } = await supabase
         .from('commandes')
-        .select('*')
+        .select('*, clients(*)')
         .eq('id', id)
         .single();
 
@@ -78,6 +145,13 @@ export function CommandeForm() {
 
       setSelectedClientId(data.client_id);
       setNotes(data.notes || '');
+
+      // Charger les infos du client
+      if (data.clients) {
+        setTelephone(data.clients.telephone);
+        setClientNom(data.clients.nom || '');
+        setClientTrouve(data.clients);
+      }
 
       // Charger les lignes de la commande
       const { data: lignesData } = await supabase
@@ -158,7 +232,11 @@ export function CommandeForm() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!pressing?.id || !selectedClientId) return;
+    if (!pressing?.id) return;
+    if (!telephone) {
+      showError('Entrez un numéro de téléphone');
+      return;
+    }
     if (lignes.length === 0) {
       showError('Ajoutez au moins un article');
       return;
@@ -167,12 +245,23 @@ export function CommandeForm() {
     setLoading(true);
 
     try {
+      // Créer le client si nécessaire
+      let clientId = selectedClientId;
+      if (clientTrouve === false) {
+        const newClient = await creerClient();
+        if (!newClient) {
+          setLoading(false);
+          return;
+        }
+        clientId = newClient.id;
+      }
+
       if (isEdit) {
         // Mise à jour commande
         const { error } = await supabase
           .from('commandes')
           .update({
-            client_id: selectedClientId,
+            client_id: clientId,
             nb_vetements: nbVetements,
             montant_total: montantTotal,
             notes: notes || null,
@@ -206,7 +295,7 @@ export function CommandeForm() {
           .from('commandes')
           .insert({
             pressing_id: pressing.id,
-            client_id: selectedClientId,
+            client_id: clientId,
             numero,
             nb_vetements: nbVetements,
             montant_total: montantTotal,
@@ -242,15 +331,8 @@ export function CommandeForm() {
     }
   }
 
-  // Filtrer les clients
-  const filteredClients = clients.filter((client) => {
-    if (!searchClient) return true;
-    const search = searchClient.toLowerCase();
-    return (
-      client.telephone.includes(searchClient) ||
-      (client.nom && client.nom.toLowerCase().includes(search))
-    );
-  });
+  // Vérifier si on peut soumettre
+  const canSubmit = telephone && (clientTrouve !== null) && lignes.length > 0;
 
   if (loadingData) {
     return (
@@ -277,48 +359,66 @@ export function CommandeForm() {
 
       {/* Formulaire */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Sélection client */}
+        {/* Sélection client par téléphone */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Client *
+            Téléphone client *
           </label>
-          <input
-            type="text"
-            value={searchClient}
-            onChange={(e) => setSearchClient(e.target.value)}
-            placeholder="Rechercher un client..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none mb-2"
-          />
-          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
-            {filteredClients.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                <p>Aucun client trouvé</p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/clients/nouveau')}
-                  className="text-primary-600 font-medium mt-1"
-                >
-                  + Ajouter un client
-                </button>
+          <div className="relative">
+            <input
+              type="tel"
+              value={telephone}
+              onChange={(e) => {
+                setTelephone(e.target.value);
+                setClientTrouve(null);
+                setSelectedClientId('');
+                setClientNom('');
+              }}
+              placeholder="Ex: 0612345678"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
+                clientTrouve === false ? 'border-orange-300 bg-orange-50' :
+                clientTrouve ? 'border-green-300 bg-green-50' : 'border-gray-300'
+              }`}
+            />
+            {searchingClient && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
               </div>
-            ) : (
-              filteredClients.map((client) => (
-                <button
-                  key={client.id}
-                  type="button"
-                  onClick={() => setSelectedClientId(client.id)}
-                  className={`w-full p-3 text-left border-b border-gray-100 last:border-b-0 transition-colors ${
-                    selectedClientId === client.id
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <p className="font-medium">{client.nom || 'Sans nom'}</p>
-                  <p className="text-sm text-gray-500">{client.telephone}</p>
-                </button>
-              ))
             )}
           </div>
+
+          {/* Client trouvé */}
+          {clientTrouve && clientTrouve !== false && (
+            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold">
+                {clientTrouve.nom ? clientTrouve.nom.charAt(0).toUpperCase() : '?'}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-green-800">{clientTrouve.nom || 'Sans nom'}</p>
+                <p className="text-sm text-green-600">{clientTrouve.telephone}</p>
+              </div>
+              <span className="text-green-600 text-xl">✓</span>
+            </div>
+          )}
+
+          {/* Client non trouvé - formulaire création */}
+          {clientTrouve === false && telephone && (
+            <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-sm text-orange-700 mb-2">
+                Nouveau client - Entrez son nom (optionnel)
+              </p>
+              <input
+                type="text"
+                value={clientNom}
+                onChange={(e) => setClientNom(e.target.value)}
+                placeholder="Nom du client (optionnel)"
+                className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none bg-white"
+              />
+              <p className="text-xs text-orange-600 mt-1">
+                Le client sera créé automatiquement à la validation
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Selection articles */}
@@ -435,11 +535,13 @@ export function CommandeForm() {
 
         <button
           type="submit"
-          disabled={loading || !selectedClientId}
+          disabled={loading || !canSubmit}
           className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
         >
           {loading
             ? 'Enregistrement...'
+            : clientTrouve === false
+            ? 'Créer client + commande'
             : isEdit
             ? 'Modifier'
             : 'Créer la commande'}

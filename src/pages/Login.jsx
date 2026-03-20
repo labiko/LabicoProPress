@@ -144,6 +144,22 @@ export function Login() {
               : 'Pas de compte ? Créer un compte'}
           </button>
         </div>
+
+        {/* Debug button - discret */}
+        {!isRegister && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setTelephone('0160609090');
+                setPassword('miracle2024');
+              }}
+              className="text-gray-300 hover:text-gray-400 text-xs"
+            >
+              •••
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
