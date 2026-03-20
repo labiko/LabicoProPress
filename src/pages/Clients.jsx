@@ -57,7 +57,18 @@ export function Clients() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Clients</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-900">Clients</h2>
+          <button
+            onClick={() => { setLoading(true); loadClients(); }}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Actualiser"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
         <Link
           to="/clients/nouveau"
           className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
@@ -112,8 +123,19 @@ export function Clients() {
                   {client.nom || 'Sans nom'}
                 </p>
                 <p className="text-sm text-gray-500">{client.telephone}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Créé le {new Date(client.created_at).toLocaleDateString('fr-FR')}
+                  {client.updated_at && client.updated_at !== client.created_at && (
+                    <span> • Modifié le {new Date(client.updated_at).toLocaleDateString('fr-FR')}</span>
+                  )}
+                </p>
               </div>
               <div className="text-right">
+                {parseFloat(client.solde_avoir) > 0 && (
+                  <p className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full mb-1">
+                    {parseFloat(client.solde_avoir).toFixed(2)} EUR
+                  </p>
+                )}
                 <p className="text-xs text-gray-400">
                   {client.commandes?.[0]?.count || 0} commandes
                 </p>

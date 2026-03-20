@@ -9,7 +9,6 @@ import { Clients } from './pages/Clients';
 import { ClientForm } from './pages/ClientForm';
 import { Commandes } from './pages/Commandes';
 import { CommandeForm } from './pages/CommandeForm';
-import { CommandeDetail } from './pages/CommandeDetail';
 import { Parametres } from './pages/Parametres';
 
 function ProtectedRoute({ children }) {
@@ -97,17 +96,6 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <CommandeForm />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/commandes/:id"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <CommandeDetail />
             </Layout>
           </ProtectedRoute>
         }

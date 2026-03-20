@@ -13,16 +13,22 @@ export function CommandeForm() {
 
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [nbVetements, setNbVetements] = useState(1);
-  const [modeEtiquetage, setModeEtiquetage] = useState('individuel');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [searchClient, setSearchClient] = useState('');
 
+  // Selection articles
+  const [lignes, setLignes] = useState([]);
+  const [selectedCategorie, setSelectedCategorie] = useState('basiques');
+  const [showArticleSelector, setShowArticleSelector] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [articles, setArticles] = useState([]);
+
   useEffect(() => {
     if (pressing?.id) {
       loadClients();
+      loadTarifs();
       if (isEdit) {
         loadCommande();
       } else {
@@ -30,6 +36,20 @@ export function CommandeForm() {
       }
     }
   }, [pressing?.id, id]);
+
+  async function loadTarifs() {
+    try {
+      const [catRes, artRes] = await Promise.all([
+        supabase.from('categories').select('*').order('ordre'),
+        supabase.from('articles').select('*')
+      ]);
+      if (catRes.data) setCategories(catRes.data);
+      if (artRes.data) setArticles(artRes.data);
+      if (catRes.data?.length > 0) setSelectedCategorie(catRes.data[0].id);
+    } catch (err) {
+      console.error('Erreur chargement tarifs:', err);
+    }
+  }
 
   async function loadClients() {
     try {
@@ -57,9 +77,22 @@ export function CommandeForm() {
       if (error) throw error;
 
       setSelectedClientId(data.client_id);
-      setNbVetements(data.nb_vetements);
-      setModeEtiquetage(data.mode_etiquetage);
       setNotes(data.notes || '');
+
+      // Charger les lignes de la commande
+      const { data: lignesData } = await supabase
+        .from('lignes_commande')
+        .select('*')
+        .eq('commande_id', id);
+
+      if (lignesData && lignesData.length > 0) {
+        setLignes(lignesData.map(l => ({
+          article_id: l.article_id,
+          article_nom: l.article_nom,
+          quantite: l.quantite,
+          prix_unitaire: parseFloat(l.prix_unitaire)
+        })));
+      }
     } catch (err) {
       console.error('Erreur chargement commande:', err);
       showError('Commande non trouvée');
@@ -68,6 +101,46 @@ export function CommandeForm() {
       setLoadingData(false);
     }
   }
+
+  // Fonctions de gestion des articles
+  function ajouterArticle(article) {
+    const existe = lignes.find(l => l.article_id === article.id);
+    if (existe) {
+      setLignes(lignes.map(l =>
+        l.article_id === article.id
+          ? { ...l, quantite: l.quantite + 1 }
+          : l
+      ));
+    } else {
+      setLignes([...lignes, {
+        article_id: article.id,
+        article_nom: article.nom,
+        quantite: 1,
+        prix_unitaire: parseFloat(article.prix)
+      }]);
+    }
+  }
+
+  function modifierQuantite(articleId, delta) {
+    setLignes(lignes.map(l => {
+      if (l.article_id === articleId) {
+        const newQte = l.quantite + delta;
+        return newQte > 0 ? { ...l, quantite: newQte } : l;
+      }
+      return l;
+    }).filter(l => l.quantite > 0));
+  }
+
+  function supprimerLigne(articleId) {
+    setLignes(lignes.filter(l => l.article_id !== articleId));
+  }
+
+  // Articles filtrés par catégorie
+  const articlesFiltres = articles.filter(a => a.categorie_id === selectedCategorie);
+
+  // Calcul du total et nb vetements
+  const montantTotal = lignes.reduce((sum, l) => sum + (l.prix_unitaire * l.quantite), 0);
+  const nbVetements = lignes.reduce((sum, l) => sum + l.quantite, 0);
 
   async function genererNumero() {
     const annee = new Date().getFullYear();
@@ -86,24 +159,44 @@ export function CommandeForm() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!pressing?.id || !selectedClientId) return;
+    if (lignes.length === 0) {
+      showError('Ajoutez au moins un article');
+      return;
+    }
 
     setLoading(true);
 
     try {
       if (isEdit) {
-        // Mise à jour
+        // Mise à jour commande
         const { error } = await supabase
           .from('commandes')
           .update({
             client_id: selectedClientId,
             nb_vetements: nbVetements,
-            mode_etiquetage: modeEtiquetage,
+            montant_total: montantTotal,
             notes: notes || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
 
         if (error) throw error;
+
+        // Supprimer anciennes lignes et recréer
+        await supabase.from('lignes_commande').delete().eq('commande_id', id);
+
+        if (lignes.length > 0) {
+          const lignesInsert = lignes.map(l => ({
+            commande_id: id,
+            article_id: l.article_id,
+            article_nom: l.article_nom,
+            quantite: l.quantite,
+            prix_unitaire: l.prix_unitaire,
+            sous_total: l.prix_unitaire * l.quantite
+          }));
+          await supabase.from('lignes_commande').insert(lignesInsert);
+        }
+
         showSuccess('Commande modifiée');
       } else {
         // Création
@@ -116,18 +209,28 @@ export function CommandeForm() {
             client_id: selectedClientId,
             numero,
             nb_vetements: nbVetements,
-            mode_etiquetage: modeEtiquetage,
+            montant_total: montantTotal,
             notes: notes || null,
           })
           .select()
           .single();
 
         if (error) throw error;
-        showSuccess(`Commande ${numero} créée`);
 
-        // Rediriger vers le détail pour impression étiquette
-        navigate(`/commandes/${data.id}`);
-        return;
+        // Créer les lignes
+        if (lignes.length > 0) {
+          const lignesInsert = lignes.map(l => ({
+            commande_id: data.id,
+            article_id: l.article_id,
+            article_nom: l.article_nom,
+            quantite: l.quantite,
+            prix_unitaire: l.prix_unitaire,
+            sous_total: l.prix_unitaire * l.quantite
+          }));
+          await supabase.from('lignes_commande').insert(lignesInsert);
+        }
+
+        showSuccess(`Commande ${numero} créée`);
       }
 
       navigate('/commandes');
@@ -218,53 +321,102 @@ export function CommandeForm() {
           </div>
         </div>
 
-        {/* Nombre de vêtements */}
+        {/* Selection articles */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre de vêtements
-          </label>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Articles ({nbVetements} articles - {montantTotal.toFixed(2)} EUR)
+            </label>
             <button
               type="button"
-              onClick={() => setNbVetements(Math.max(1, nbVetements - 1))}
-              className="w-12 h-12 bg-gray-100 rounded-lg text-xl font-bold hover:bg-gray-200 transition-colors"
+              onClick={() => setShowArticleSelector(!showArticleSelector)}
+              className="text-primary-600 text-sm font-medium"
             >
-              -
-            </button>
-            <span className="text-2xl font-semibold w-12 text-center">
-              {nbVetements}
-            </span>
-            <button
-              type="button"
-              onClick={() => setNbVetements(nbVetements + 1)}
-              className="w-12 h-12 bg-gray-100 rounded-lg text-xl font-bold hover:bg-gray-200 transition-colors"
-            >
-              +
+              {showArticleSelector ? 'Fermer' : '+ Ajouter'}
             </button>
           </div>
-        </div>
 
-        {/* Mode d'étiquetage */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mode d'étiquetage
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {['individuel', 'filet', 'mixte'].map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setModeEtiquetage(mode)}
-                className={`py-3 px-2 rounded-lg text-sm font-medium capitalize transition-colors ${
-                  modeEtiquetage === mode
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          {/* Lignes ajoutées */}
+          {lignes.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
+              {lignes.map((ligne) => (
+                <div key={ligne.article_id} className="flex items-center justify-between bg-white p-2 rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{ligne.article_nom}</p>
+                    <p className="text-xs text-gray-500">{ligne.prix_unitaire.toFixed(2)} EUR x {ligne.quantite}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => modifierQuantite(ligne.article_id, -1)}
+                      className="w-8 h-8 bg-gray-100 rounded-full text-lg font-bold"
+                    >
+                      -
+                    </button>
+                    <span className="w-6 text-center font-medium">{ligne.quantite}</span>
+                    <button
+                      type="button"
+                      onClick={() => modifierQuantite(ligne.article_id, 1)}
+                      className="w-8 h-8 bg-gray-100 rounded-full text-lg font-bold"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => supprimerLigne(ligne.article_id)}
+                      className="w-8 h-8 text-red-500 ml-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
+                <span>Total</span>
+                <span className="text-primary-600">{montantTotal.toFixed(2)} EUR</span>
+              </div>
+            </div>
+          )}
+
+          {/* Sélecteur d'articles */}
+          {showArticleSelector && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              {/* Onglets catégories */}
+              <div className="flex overflow-x-auto bg-gray-50 border-b">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategorie(cat.id)}
+                    className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
+                      selectedCategorie === cat.id
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {cat.nom}
+                  </button>
+                ))}
+              </div>
+              {/* Liste articles */}
+              <div className="max-h-64 overflow-y-auto divide-y">
+                {articlesFiltres.map((article) => (
+                  <button
+                    key={article.id}
+                    type="button"
+                    onClick={() => ajouterArticle(article)}
+                    className="w-full p-3 text-left hover:bg-gray-50 flex justify-between items-center"
+                  >
+                    <span className="text-sm">{article.nom}</span>
+                    <span className="text-sm font-medium text-primary-600">{parseFloat(article.prix).toFixed(2)} EUR</span>
+                  </button>
+                ))}
+                {articlesFiltres.length === 0 && (
+                  <p className="p-4 text-center text-gray-500 text-sm">Aucun article dans cette catégorie</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notes */}

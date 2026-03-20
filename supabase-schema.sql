@@ -25,7 +25,9 @@ CREATE TABLE clients (
     pressing_id UUID REFERENCES pressings(id) ON DELETE CASCADE,
     telephone VARCHAR(15) NOT NULL,
     nom VARCHAR(100),
+    solde_avoir DECIMAL(10,2) DEFAULT 0,  -- Solde d'avoir du client
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(pressing_id, telephone)
 );
 
@@ -37,8 +39,11 @@ CREATE TABLE commandes (
     numero VARCHAR(20) NOT NULL,
     statut VARCHAR(20) DEFAULT 'en_cours' CHECK (statut IN ('en_cours', 'pret', 'recupere')),
     nb_vetements INTEGER DEFAULT 1,
+    montant_total DECIMAL(10,2) DEFAULT 0,     -- Total de la commande
     mode_etiquetage VARCHAR(20) DEFAULT 'individuel' CHECK (mode_etiquetage IN ('individuel', 'filet', 'mixte')),
     notes TEXT,
+    date_pret TIMESTAMP WITH TIME ZONE,        -- Date quand marque pret
+    date_recupere TIMESTAMP WITH TIME ZONE,    -- Date quand client recupere
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -53,6 +58,47 @@ CREATE TABLE sms_logs (
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 5. TABLE CATEGORIES (catalogue)
+CREATE TABLE categories (
+    id VARCHAR(50) PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    icon VARCHAR(10),
+    ordre INTEGER DEFAULT 0
+);
+
+-- 6. TABLE ARTICLES (catalogue)
+CREATE TABLE articles (
+    id VARCHAR(50) PRIMARY KEY,
+    categorie_id VARCHAR(50) REFERENCES categories(id),
+    nom VARCHAR(100) NOT NULL,
+    prix DECIMAL(10,2) NOT NULL
+);
+
+-- 7. TABLE LIGNES_COMMANDE (details articles par commande)
+CREATE TABLE lignes_commande (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    commande_id UUID REFERENCES commandes(id) ON DELETE CASCADE,
+    article_id VARCHAR(50) NOT NULL,       -- ID de l'article (ref tarifs.js)
+    article_nom VARCHAR(100) NOT NULL,     -- Nom de l'article (snapshot)
+    quantite INTEGER DEFAULT 1,
+    prix_unitaire DECIMAL(10,2) NOT NULL,  -- Prix unitaire (snapshot)
+    sous_total DECIMAL(10,2) NOT NULL,     -- quantite * prix_unitaire
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. TABLE AVOIRS (credits clients)
+CREATE TABLE avoirs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pressing_id UUID REFERENCES pressings(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    commande_id UUID REFERENCES commandes(id) ON DELETE SET NULL,  -- commande liee (optionnel)
+    montant DECIMAL(10,2) NOT NULL,
+    motif VARCHAR(50),  -- 'retard', 'dommage', 'geste_commercial', 'utilisation', 'autre'
+    type VARCHAR(10) NOT NULL CHECK (type IN ('credit', 'debit')),  -- credit = on accorde, debit = on utilise
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ============================================
 -- INDEX pour performances
 -- ============================================
@@ -63,6 +109,11 @@ CREATE INDEX idx_commandes_pressing ON commandes(pressing_id);
 CREATE INDEX idx_commandes_statut ON commandes(statut);
 CREATE INDEX idx_commandes_numero ON commandes(numero);
 CREATE INDEX idx_commandes_created ON commandes(created_at DESC);
+CREATE INDEX idx_avoirs_client ON avoirs(client_id);
+CREATE INDEX idx_avoirs_pressing ON avoirs(pressing_id);
+CREATE INDEX idx_avoirs_created ON avoirs(created_at DESC);
+CREATE INDEX idx_lignes_commande ON lignes_commande(commande_id);
+CREATE INDEX idx_articles_categorie ON articles(categorie_id);
 
 -- ============================================
 -- FONCTION: Creer un pressing avec mot de passe crypte
@@ -173,12 +224,20 @@ ALTER TABLE pressings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE commandes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sms_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE avoirs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lignes_commande ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
 
 -- Permettre l'acces public aux tables (l'auth est geree par les fonctions)
 CREATE POLICY "Allow all for pressings" ON pressings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for clients" ON clients FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for commandes" ON commandes FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for sms_logs" ON sms_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for avoirs" ON avoirs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for lignes_commande" ON lignes_commande FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for categories" ON categories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for articles" ON articles FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
 -- DONNEE DE TEST (optionnel)

@@ -13,6 +13,8 @@ export function ClientForm() {
 
   const [telephone, setTelephone] = useState('');
   const [nom, setNom] = useState('');
+  const [soldeAvoir, setSoldeAvoir] = useState(0);
+  const [avoirs, setAvoirs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
 
@@ -24,6 +26,7 @@ export function ClientForm() {
 
   async function loadClient() {
     try {
+      // Charger le client
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -34,6 +37,16 @@ export function ClientForm() {
 
       setTelephone(data.telephone);
       setNom(data.nom || '');
+      setSoldeAvoir(parseFloat(data.solde_avoir) || 0);
+
+      // Charger l'historique des avoirs
+      const { data: avoirsData } = await supabase
+        .from('avoirs')
+        .select('*, commandes(numero)')
+        .eq('client_id', id)
+        .order('created_at', { ascending: false });
+
+      setAvoirs(avoirsData || []);
     } catch (err) {
       console.error('Erreur chargement client:', err);
       showError('Client non trouvé');
@@ -149,6 +162,61 @@ export function ClientForm() {
           {loading ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Ajouter'}
         </button>
       </form>
+
+      {/* Section Avoir - seulement en mode edition */}
+      {isEdit && (
+        <div className="mt-8 space-y-4">
+          {/* Solde avoir */}
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 rounded-xl text-white">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-white/80 text-sm">Solde avoir</p>
+                <p className="text-2xl font-bold">{soldeAvoir.toFixed(2)} EUR</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Historique des avoirs */}
+          {avoirs.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-900">Historique des avoirs</h3>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {avoirs.map((avoir) => (
+                  <div key={avoir.id} className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${avoir.type === 'credit' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        <span className="font-medium text-gray-900 capitalize">
+                          {avoir.motif?.replace('_', ' ') || 'Avoir'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(avoir.created_at).toLocaleDateString('fr-FR', {
+                          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                        {avoir.commandes?.numero && ` - Cmd ${avoir.commandes.numero}`}
+                      </p>
+                      {avoir.notes && (
+                        <p className="text-xs text-gray-400 mt-1">{avoir.notes}</p>
+                      )}
+                    </div>
+                    <span className={`font-bold ${avoir.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                      {avoir.type === 'credit' ? '+' : '-'}{parseFloat(avoir.montant).toFixed(2)} EUR
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
