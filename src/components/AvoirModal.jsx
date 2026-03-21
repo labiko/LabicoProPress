@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const MOTIFS = [
   { value: 'retard', label: 'Retard' },
@@ -7,10 +7,17 @@ const MOTIFS = [
   { value: 'autre', label: 'Autre' },
 ];
 
-export function AvoirModal({ isOpen, onClose, onSubmit, clientNom, loading }) {
+export function AvoirModal({ isOpen, onClose, onSubmit, clientNom, montantTotal, loading }) {
   const [montant, setMontant] = useState('');
   const [motif, setMotif] = useState('geste_commercial');
   const [notes, setNotes] = useState('');
+
+  // Initialiser le montant avec le total de la commande
+  useEffect(() => {
+    if (isOpen && montantTotal) {
+      setMontant(parseFloat(montantTotal).toFixed(2));
+    }
+  }, [isOpen, montantTotal]);
 
   if (!isOpen) return null;
 

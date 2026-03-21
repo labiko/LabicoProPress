@@ -5,6 +5,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { supabase } from '../lib/supabase';
 import { envoyerSmsCommandePrete } from '../lib/sms';
 import { AvoirModal } from '../components/AvoirModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const STATUTS = {
   en_cours: { label: 'En cours', color: 'bg-yellow-100 text-yellow-800' },
@@ -29,6 +30,10 @@ export function Commandes() {
   const [selectedCommande, setSelectedCommande] = useState(null);
   const [avoirLoading, setAvoirLoading] = useState(false);
 
+  // Modal confirmation annulation avoir
+  const [confirmAnnulerOpen, setConfirmAnnulerOpen] = useState(false);
+  const [commandeAnnuler, setCommandeAnnuler] = useState(null);
+
   useEffect(() => {
     if (pressing?.id) {
       loadCommandes();
@@ -45,7 +50,7 @@ export function Commandes() {
     try {
       const { data, error } = await supabase
         .from('commandes')
-        .select('*, clients(nom, telephone, solde_avoir)')
+        .select('*, clients(nom, telephone, solde_avoir), lignes_commande(*), avoirs(*)')
         .eq('pressing_id', pressing.id)
         .order('created_at', { ascending: false });
 
@@ -167,11 +172,55 @@ export function Commandes() {
       showSuccess(`Avoir de ${montant.toFixed(2)} EUR accordé`);
       setAvoirModalOpen(false);
       setSelectedCommande(null);
+      loadCommandes();
     } catch (err) {
       console.error('Erreur creation avoir:', err);
       showError('Erreur lors de la création de l\'avoir');
     } finally {
       setAvoirLoading(false);
+    }
+  }
+
+  function ouvrirConfirmAnnuler(commande) {
+    setCommandeAnnuler(commande);
+    setConfirmAnnulerOpen(true);
+  }
+
+  async function confirmerAnnulerAvoir() {
+    if (!commandeAnnuler) return;
+
+    const avoirActif = commandeAnnuler.avoirs?.find(a => a.type === 'credit' && !a.annule_at);
+    if (!avoirActif) return;
+
+    try {
+      // 1. Marquer l'avoir comme annulé
+      const { error: avoirError } = await supabase
+        .from('avoirs')
+        .update({ annule_at: new Date().toISOString() })
+        .eq('id', avoirActif.id);
+
+      if (avoirError) throw avoirError;
+
+      // 2. Soustraire du solde du client
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('solde_avoir')
+        .eq('id', commandeAnnuler.client_id)
+        .single();
+
+      const nouveauSolde = Math.max(0, (parseFloat(clientData?.solde_avoir) || 0) - parseFloat(avoirActif.montant));
+
+      await supabase
+        .from('clients')
+        .update({ solde_avoir: nouveauSolde })
+        .eq('id', commandeAnnuler.client_id);
+
+      showSuccess('Avoir annulé');
+      setCommandeAnnuler(null);
+      loadCommandes();
+    } catch (err) {
+      console.error('Erreur annulation avoir:', err);
+      showError('Erreur lors de l\'annulation');
     }
   }
 
@@ -292,6 +341,7 @@ export function Commandes() {
               onMarquerPret={() => marquerPret(commande)}
               onMarquerRecupere={() => marquerRecupere(commande)}
               onAccorderAvoir={() => ouvrirAvoirModal(commande)}
+              onAnnulerAvoir={() => ouvrirConfirmAnnuler(commande)}
             />
           ))}
         </div>
@@ -303,7 +353,20 @@ export function Commandes() {
         onClose={() => { setAvoirModalOpen(false); setSelectedCommande(null); }}
         onSubmit={creerAvoir}
         clientNom={selectedCommande?.clients?.nom}
+        montantTotal={selectedCommande?.montant_total}
         loading={avoirLoading}
+      />
+
+      {/* Modal Confirmation Annulation */}
+      <ConfirmModal
+        isOpen={confirmAnnulerOpen}
+        onClose={() => { setConfirmAnnulerOpen(false); setCommandeAnnuler(null); }}
+        onConfirm={confirmerAnnulerAvoir}
+        title="Annuler l'avoir"
+        message={`Voulez-vous vraiment annuler l'avoir de ${commandeAnnuler?.avoirs?.find(a => a.type === 'credit' && !a.annule_at)?.montant ? parseFloat(commandeAnnuler.avoirs.find(a => a.type === 'credit' && !a.annule_at).montant).toFixed(2) : '0.00'} EUR ?`}
+        confirmText="Annuler l'avoir"
+        cancelText="Non"
+        variant="danger"
       />
     </div>
   );
@@ -324,8 +387,13 @@ function FilterButton({ children, active, onClick }) {
   );
 }
 
-function CommandeCard({ commande, isExpanded, onToggleExpand, onMarquerPret, onMarquerRecupere, onAccorderAvoir }) {
+function CommandeCard({ commande, isExpanded, onToggleExpand, onMarquerPret, onMarquerRecupere, onAccorderAvoir, onAnnulerAvoir }) {
   const statut = STATUTS[commande.statut];
+
+  // Avoir actif (type=credit et non annulé)
+  const avoirActif = commande.avoirs?.find(a => a.type === 'credit' && !a.annule_at);
+  // Dernier avoir annulé
+  const avoirAnnule = commande.avoirs?.find(a => a.type === 'credit' && a.annule_at);
 
   // Formatage des dates
   const formatDate = (dateStr) => {
@@ -482,11 +550,28 @@ function CommandeCard({ commande, isExpanded, onToggleExpand, onMarquerPret, onM
               </div>
             )}
 
-            {/* Infos commande */}
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-blue-600 font-medium">Nombre d'articles</p>
-              <p className="text-lg font-bold text-blue-800">{commande.nb_vetements}</p>
-            </div>
+            {/* Détail des articles */}
+            {commande.lignes_commande && commande.lignes_commande.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="p-2 bg-gray-50 border-b flex items-center gap-2">
+                  <span className="text-sm">📦</span>
+                  <span className="text-xs font-medium text-gray-700">Détail des articles</span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {commande.lignes_commande.map((ligne) => (
+                    <div key={ligne.id} className="p-2 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 truncate">{ligne.article_nom}</p>
+                        <p className="text-xs text-gray-500">{parseFloat(ligne.prix_unitaire).toFixed(2)} EUR x {ligne.quantite}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 ml-2">
+                        {parseFloat(ligne.sous_total).toFixed(2)} EUR
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             {commande.notes && (
@@ -499,44 +584,79 @@ function CommandeCard({ commande, isExpanded, onToggleExpand, onMarquerPret, onM
 
           {/* Actions selon statut */}
           {commande.statut === 'en_cours' && (
-            <div className="p-4 pt-0">
+            <div className="p-3 pt-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onMarquerPret(); }}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all shadow-lg shadow-green-500/30 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 rounded-lg text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all shadow-md shadow-green-500/20 flex items-center justify-center gap-2"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                Marquer prêt + Envoyer SMS
+                Prêt + SMS
               </button>
             </div>
           )}
 
           {commande.statut === 'pret' && (
-            <div className="p-4 pt-0">
+            <div className="p-3 pt-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onMarquerRecupere(); }}
-                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:from-purple-600 hover:to-purple-700 transition-all shadow-md shadow-purple-500/20 flex items-center justify-center gap-2"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                 </svg>
-                Marquer comme récupéré
+                Récupéré
               </button>
             </div>
           )}
 
-          {/* Bouton Accorder un avoir - toujours visible */}
-          <div className="p-4 pt-0 border-t border-gray-100 mt-2">
-            <button
-              onClick={(e) => { e.stopPropagation(); onAccorderAvoir(); }}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Accorder un avoir
-            </button>
+          {/* Section Avoir */}
+          <div className="p-3 pt-0 border-t border-gray-100 mt-2 space-y-2">
+            {/* Affichage avoir actif */}
+            {avoirActif && (
+              <div className="p-2 bg-orange-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-orange-700">Avoir accordé</span>
+                  <span className="text-sm font-semibold text-orange-700">{parseFloat(avoirActif.montant).toFixed(2)} EUR</span>
+                </div>
+                <p className="text-xs text-orange-600 mt-0.5">{formatDate(avoirActif.created_at)}</p>
+              </div>
+            )}
+
+            {/* Affichage avoir annulé (si pas d'avoir actif) */}
+            {!avoirActif && avoirAnnule && (
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 line-through">Avoir annulé</span>
+                  <span className="text-sm font-semibold text-gray-400 line-through">{parseFloat(avoirAnnule.montant).toFixed(2)} EUR</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">Annulé le {formatDate(avoirAnnule.annule_at)}</p>
+              </div>
+            )}
+
+            {/* Bouton Annuler avoir OU Accorder avoir */}
+            {avoirActif ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onAnnulerAvoir(); }}
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-2 rounded-lg text-sm font-medium hover:from-red-600 hover:to-red-700 transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Annuler avoir
+              </button>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onAccorderAvoir(); }}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 rounded-lg text-sm font-medium hover:from-orange-600 hover:to-orange-700 transition-all shadow-md shadow-orange-500/20 flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Avoir
+              </button>
+            )}
           </div>
         </div>
       )}

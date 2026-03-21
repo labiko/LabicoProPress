@@ -96,7 +96,8 @@ CREATE TABLE avoirs (
     motif VARCHAR(50),  -- 'retard', 'dommage', 'geste_commercial', 'utilisation', 'autre'
     type VARCHAR(10) NOT NULL CHECK (type IN ('credit', 'debit')),  -- credit = on accorde, debit = on utilise
     notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    annule_at TIMESTAMP WITH TIME ZONE DEFAULT NULL  -- Date d'annulation si avoir annule
 );
 
 -- ============================================

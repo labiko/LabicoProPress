@@ -8,7 +8,16 @@
       "Bash(npm run dev:*)",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit - LabicoProPress v1.0.0\n\n- React + Vite + Tailwind CSS\n- PWA configuration\n- Supabase integration (custom auth with bcrypt)\n- Pages: Login, Dashboard, Clients, Commandes, Parametres\n- SMS notifications (smsmode API)\n- Label printing support\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(node scripts/init-db.js:*)",
+      "Bash(psql:*)",
+      "Bash(PGPASSWORD='p4zN25F7Gfw9Py@' psql:*)",
+      "Bash(PGPASSWORD='p4zN25F7Gfw9Py@' psql -h db.bohixtoknfbgfgkgbukn.supabase.co -p 5432 -U postgres -d postgres -c \"SELECT create_pressing(''0160609090'', ''miracle2024'', ''Pressing MIRACLE'', ''Moissy-Cramayel, 77550'');\")",
+      "Bash(PGPASSWORD=p4zN25F7Gfw9Py@ psql:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Création auto client dans formulaire commande\n\n- Recherche client par téléphone avec debounce\n- Si client non trouvé, création automatique à la validation\n- Sélecteur d''articles ouvert par défaut\n- Reset du champ nom lors du changement de téléphone\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")"
     ]
   }
 }

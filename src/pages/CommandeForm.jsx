@@ -30,6 +30,9 @@ export function CommandeForm() {
   const [articles, setArticles] = useState([]);
   const [searchArticle, setSearchArticle] = useState(''); // Recherche articles
 
+  // Utilisation avoir
+  const [utiliserAvoir, setUtiliserAvoir] = useState(false);
+
   useEffect(() => {
     if (pressing?.id) {
       loadTarifs();
@@ -209,12 +212,19 @@ export function CommandeForm() {
     setLignes(lignes.filter(l => l.article_id !== articleId));
   }
 
-  // Articles filtrés par catégorie
-  const articlesFiltres = articles.filter(a => a.categorie_id === selectedCategorie);
+  // Articles filtrés par catégorie ou recherche
+  const articlesFiltres = searchArticle
+    ? articles.filter(a => a.nom.toLowerCase().includes(searchArticle.toLowerCase()))
+    : articles.filter(a => a.categorie_id === selectedCategorie);
 
   // Calcul du total et nb vetements
   const montantTotal = lignes.reduce((sum, l) => sum + (l.prix_unitaire * l.quantite), 0);
   const nbVetements = lignes.reduce((sum, l) => sum + l.quantite, 0);
+
+  // Calcul avoir
+  const soldeAvoir = clientTrouve ? parseFloat(clientTrouve.solde_avoir) || 0 : 0;
+  const avoirUtilise = utiliserAvoir ? Math.min(soldeAvoir, montantTotal) : 0;
+  const resteAPayer = montantTotal - avoirUtilise;
 
   async function genererNumero() {
     const annee = new Date().getFullYear();
@@ -319,7 +329,28 @@ export function CommandeForm() {
           await supabase.from('lignes_commande').insert(lignesInsert);
         }
 
-        showSuccess(`Commande ${numero} créée`);
+        // Utiliser l'avoir si coché
+        if (utiliserAvoir && avoirUtilise > 0) {
+          // Créer avoir type debit
+          await supabase.from('avoirs').insert({
+            pressing_id: pressing.id,
+            client_id: clientId,
+            commande_id: data.id,
+            montant: avoirUtilise,
+            type: 'debit',
+            motif: 'utilisation',
+            notes: `Utilisé pour commande ${numero}`,
+          });
+
+          // Mettre à jour solde client
+          const nouveauSolde = Math.max(0, soldeAvoir - avoirUtilise);
+          await supabase
+            .from('clients')
+            .update({ solde_avoir: nouveauSolde })
+            .eq('id', clientId);
+        }
+
+        showSuccess(`Commande ${numero} créée${avoirUtilise > 0 ? ` (avoir -${avoirUtilise.toFixed(2)} EUR)` : ''}`);
       }
 
       navigate('/commandes');
@@ -373,6 +404,7 @@ export function CommandeForm() {
                 setClientTrouve(null);
                 setSelectedClientId('');
                 setClientNom('');
+                setUtiliserAvoir(false);
               }}
               placeholder="Ex: 0612345678"
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
@@ -389,15 +421,38 @@ export function CommandeForm() {
 
           {/* Client trouvé */}
           {clientTrouve && clientTrouve !== false && (
-            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold">
-                {clientTrouve.nom ? clientTrouve.nom.charAt(0).toUpperCase() : '?'}
+            <div className="mt-2 space-y-2">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold">
+                  {clientTrouve.nom ? clientTrouve.nom.charAt(0).toUpperCase() : '?'}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-green-800">{clientTrouve.nom || 'Sans nom'}</p>
+                  <p className="text-sm text-green-600">{clientTrouve.telephone}</p>
+                </div>
+                <span className="text-green-600 text-xl">✓</span>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-green-800">{clientTrouve.nom || 'Sans nom'}</p>
-                <p className="text-sm text-green-600">{clientTrouve.telephone}</p>
-              </div>
-              <span className="text-green-600 text-xl">✓</span>
+
+              {/* Option avoir si client a un solde */}
+              {soldeAvoir > 0 && (
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={utiliserAvoir}
+                      onChange={(e) => setUtiliserAvoir(e.target.checked)}
+                      className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-orange-800">Utiliser l'avoir</p>
+                      <p className="text-sm text-orange-600">Solde disponible : {soldeAvoir.toFixed(2)} EUR</p>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -471,9 +526,23 @@ export function CommandeForm() {
                   </div>
                 </div>
               ))}
-              <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
-                <span>Total</span>
-                <span className="text-primary-600">{montantTotal.toFixed(2)} EUR</span>
+              <div className="border-t pt-2 mt-2 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>Total commande</span>
+                  <span className="text-gray-700">{montantTotal.toFixed(2)} EUR</span>
+                </div>
+                {utiliserAvoir && avoirUtilise > 0 && (
+                  <div className="flex justify-between text-sm text-orange-600">
+                    <span>Avoir utilisé</span>
+                    <span>-{avoirUtilise.toFixed(2)} EUR</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold text-lg pt-1">
+                  <span>Reste à payer</span>
+                  <span className={resteAPayer === 0 ? 'text-green-600' : 'text-primary-600'}>
+                    {resteAPayer.toFixed(2)} EUR
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -481,38 +550,94 @@ export function CommandeForm() {
           {/* Sélecteur d'articles */}
           {showArticleSelector && (
             <div className="border border-gray-200 rounded-lg overflow-hidden">
-              {/* Onglets catégories */}
-              <div className="flex overflow-x-auto bg-gray-50 border-b">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategorie(cat.id)}
-                    className={`px-3 py-2 text-xs font-medium whitespace-nowrap ${
-                      selectedCategorie === cat.id
-                        ? 'bg-primary-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {cat.nom}
-                  </button>
-                ))}
+              {/* Barre de recherche */}
+              <div className="p-2 bg-gray-50 border-b">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchArticle}
+                    onChange={(e) => setSearchArticle(e.target.value)}
+                    placeholder="Rechercher un article..."
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                    🔍
+                  </span>
+                  {searchArticle && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchArticle('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
-              {/* Liste articles */}
-              <div className="max-h-64 overflow-y-auto divide-y">
-                {articlesFiltres.map((article) => (
-                  <button
-                    key={article.id}
-                    type="button"
-                    onClick={() => ajouterArticle(article)}
-                    className="w-full p-3 text-left hover:bg-gray-50 flex justify-between items-center"
-                  >
-                    <span className="text-sm">{article.nom}</span>
-                    <span className="text-sm font-medium text-primary-600">{parseFloat(article.prix).toFixed(2)} EUR</span>
-                  </button>
-                ))}
+
+              {/* Onglets catégories - masqués si recherche active */}
+              {!searchArticle && (
+                <div className="flex overflow-x-auto bg-gray-50 border-b py-1 px-1 gap-1">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategorie(cat.id)}
+                      className={`px-3 py-2 text-xs font-medium whitespace-nowrap rounded-lg flex items-center gap-1 ${
+                        selectedCategorie === cat.id
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                    >
+                      {cat.icon && <span>{cat.icon}</span>}
+                      <span>{cat.nom}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Résultat recherche */}
+              {searchArticle && (
+                <div className="px-3 py-2 bg-blue-50 text-sm text-blue-700">
+                  {articlesFiltres.length} résultat{articlesFiltres.length > 1 ? 's' : ''} pour "{searchArticle}"
+                </div>
+              )}
+
+              {/* Grille articles */}
+              <div className="max-h-72 overflow-y-auto p-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {articlesFiltres.map((article) => {
+                    const ligneExistante = lignes.find(l => l.article_id === article.id);
+                    return (
+                      <button
+                        key={article.id}
+                        type="button"
+                        onClick={() => ajouterArticle(article)}
+                        className={`p-3 text-left rounded-lg border transition-all active:scale-95 ${
+                          ligneExistante
+                            ? 'bg-primary-50 border-primary-300'
+                            : 'bg-white border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-gray-900 line-clamp-2">{article.nom}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm font-bold text-primary-600">
+                            {parseFloat(article.prix).toFixed(2)} EUR
+                          </span>
+                          {ligneExistante && (
+                            <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                              x{ligneExistante.quantite}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
                 {articlesFiltres.length === 0 && (
-                  <p className="p-4 text-center text-gray-500 text-sm">Aucun article dans cette catégorie</p>
+                  <p className="p-4 text-center text-gray-500 text-sm">
+                    {searchArticle ? 'Aucun article trouvé' : 'Aucun article dans cette catégorie'}
+                  </p>
                 )}
               </div>
             </div>
