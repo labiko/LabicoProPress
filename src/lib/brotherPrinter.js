@@ -229,8 +229,8 @@ export function generateLabelImage(data) {
   const col2X = 140;    // Numero complet
   const col3X = 330;    // Date
 
-  // Colonne 1: Code court - TRES GRAND (aligne gauche)
-  ctx.font = 'bold 60px Arial';
+  // Colonne 1: Code court - GRAND (aligne gauche)
+  ctx.font = 'bold 45px Arial';
   ctx.textAlign = 'left';
   ctx.fillText(shortCode, col1X, middleY);
 
