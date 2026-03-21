@@ -206,34 +206,34 @@ export function generateLabelImage(data) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Nom du pressing (haut)
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText(pressingName.toUpperCase(), labelWidth / 2, 15);
+  // Nom du pressing (haut) - plus gros et gras
+  ctx.font = 'bold 18px Arial';
+  ctx.fillText(pressingName.toUpperCase(), labelWidth / 2, 16);
 
-  // Ligne de separation
+  // Ligne de separation - plus epaisse
   ctx.beginPath();
-  ctx.moveTo(10, 28);
-  ctx.lineTo(labelWidth - 10, 28);
+  ctx.moveTo(10, 32);
+  ctx.lineTo(labelWidth - 10, 32);
   ctx.strokeStyle = 'black';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Code court (gros, centre)
-  ctx.font = 'bold 42px Arial';
-  ctx.fillText(shortCode, labelWidth / 2, 62);
+  // Code court (gros, centre) - BEAUCOUP plus gros
+  ctx.font = 'bold 56px Arial';
+  ctx.fillText(shortCode, labelWidth / 2, 70);
 
-  // Numero complet
+  // Numero complet - plus gros
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText(orderNumber, labelWidth / 2, 100);
+
+  // Client - plus gros et gras
+  ctx.font = 'bold 14px Arial';
+  const clientText = clientName.length > 18 ? clientName.substring(0, 18) + '...' : clientName;
+  ctx.fillText(clientText, labelWidth / 2, 115);
+
+  // Date - plus gros
   ctx.font = '12px Arial';
-  ctx.fillText(orderNumber, labelWidth / 2, 95);
-
-  // Client
-  ctx.font = '11px Arial';
-  const clientText = clientName.length > 20 ? clientName.substring(0, 20) + '...' : clientName;
-  ctx.fillText(clientText, labelWidth / 2, 110);
-
-  // Date
-  ctx.font = '10px Arial';
-  ctx.fillText(date, labelWidth / 2, 123);
+  ctx.fillText(date, labelWidth / 2, 128);
 
   // Recupere les donnees de l'image
   return ctx.getImageData(0, 0, labelWidth, labelHeight);
