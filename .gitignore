@@ -23,3 +23,5 @@ Thumbs.db
 
 # Config avec secrets
 SUPABASE_CONFIG.md
+
+.vercel
