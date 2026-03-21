@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'LabicoProPress',
         short_name: 'LabicoProPress',
         description: 'Application de gestion pour pressing',
-        theme_color: '#3b82f6',
+        theme_color: '#4f46e5',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',

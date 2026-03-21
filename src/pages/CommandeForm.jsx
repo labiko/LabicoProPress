@@ -16,11 +16,14 @@ export function CommandeForm() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Client - recherche par téléphone
+  // Client - recherche par nom ou téléphone
+  const [searchQuery, setSearchQuery] = useState('');
   const [telephone, setTelephone] = useState('');
   const [clientNom, setClientNom] = useState('');
   const [clientTrouve, setClientTrouve] = useState(null); // null = pas cherché, false = pas trouvé, object = trouvé
   const [searchingClient, setSearchingClient] = useState(false);
+  const [clientsResults, setClientsResults] = useState([]); // Liste des clients trouvés
+  const [showResults, setShowResults] = useState(false);
 
   // Selection articles
   const [lignes, setLignes] = useState([]);
@@ -58,40 +61,69 @@ export function CommandeForm() {
     }
   }
 
-  // Recherche client par téléphone
-  async function rechercherClient(tel) {
-    if (!tel || tel.length < 4) {
-      setClientTrouve(null);
-      setSelectedClientId('');
+  // Recherche client par nom ou téléphone
+  async function rechercherClient(query) {
+    if (!query || query.length < 2) {
+      setClientsResults([]);
+      setShowResults(false);
+      if (!clientTrouve) {
+        setClientTrouve(null);
+        setSelectedClientId('');
+      }
       return;
     }
 
     setSearchingClient(true);
     try {
+      // Recherche par téléphone OU par nom (ilike pour insensible à la casse)
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .eq('pressing_id', pressing.id)
-        .eq('telephone', tel)
-        .single();
+        .or(`telephone.ilike.%${query}%,nom.ilike.%${query}%`)
+        .order('nom')
+        .limit(10);
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
 
-      if (data) {
-        setClientTrouve(data);
-        setSelectedClientId(data.id);
-        setClientNom(data.nom || '');
-      } else {
-        setClientTrouve(false);
-        setSelectedClientId('');
+      setClientsResults(data || []);
+      setShowResults(true);
+
+      // Si un seul résultat exact par téléphone, le sélectionner automatiquement
+      if (data?.length === 1 && data[0].telephone === query) {
+        selectClient(data[0]);
       }
     } catch (err) {
       console.error('Erreur recherche client:', err);
-      setClientTrouve(false);
-      setSelectedClientId('');
+      setClientsResults([]);
     } finally {
       setSearchingClient(false);
     }
+  }
+
+  // Sélectionner un client depuis les résultats
+  function selectClient(client) {
+    setClientTrouve(client);
+    setSelectedClientId(client.id);
+    setTelephone(client.telephone);
+    setClientNom(client.nom || '');
+    setSearchQuery(client.telephone);
+    setShowResults(false);
+    setClientsResults([]);
+  }
+
+  // Créer un nouveau client (quand non trouvé)
+  function prepareNewClient() {
+    // Si la recherche ressemble à un téléphone, l'utiliser
+    const isPhone = /^[0-9+\s-]{4,}$/.test(searchQuery);
+    if (isPhone) {
+      setTelephone(searchQuery.replace(/[\s-]/g, ''));
+    } else {
+      setClientNom(searchQuery);
+      setTelephone('');
+    }
+    setClientTrouve(false);
+    setShowResults(false);
   }
 
   // Créer un nouveau client
@@ -129,12 +161,12 @@ export function CommandeForm() {
   // Debounce pour la recherche
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (telephone && pressing?.id) {
-        rechercherClient(telephone);
+      if (searchQuery && pressing?.id && !clientTrouve) {
+        rechercherClient(searchQuery);
       }
-    }, 500);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [telephone, pressing?.id]);
+  }, [searchQuery, pressing?.id]);
 
   async function loadCommande() {
     try {
@@ -154,6 +186,7 @@ export function CommandeForm() {
         setTelephone(data.clients.telephone);
         setClientNom(data.clients.nom || '');
         setClientTrouve(data.clients);
+        setSearchQuery(data.clients.telephone);
       }
 
       // Charger les lignes de la commande
@@ -237,7 +270,13 @@ export function CommandeForm() {
       .gte('created_at', `${annee}-01-01`);
 
     const numero = String((count || 0) + 1).padStart(4, '0');
-    return `${annee}-${numero}`;
+
+    // Suffixe aléatoire 2 caractères (sans 0,O,1,I pour éviter confusion)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const suffixe = chars[Math.floor(Math.random() * chars.length)]
+                  + chars[Math.floor(Math.random() * chars.length)];
+
+    return `${annee}-${numero}-${suffixe}`;
   }
 
   async function handleSubmit(e) {
@@ -390,36 +429,79 @@ export function CommandeForm() {
 
       {/* Formulaire */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Sélection client par téléphone */}
+        {/* Recherche client par nom ou téléphone */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Téléphone client *
+            Client (nom ou téléphone) *
           </label>
-          <div className="relative">
-            <input
-              type="tel"
-              value={telephone}
-              onChange={(e) => {
-                setTelephone(e.target.value);
-                setClientTrouve(null);
-                setSelectedClientId('');
-                setClientNom('');
-                setUtiliserAvoir(false);
-              }}
-              placeholder="Ex: 0612345678"
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
-                clientTrouve === false ? 'border-orange-300 bg-orange-50' :
-                clientTrouve ? 'border-green-300 bg-green-50' : 'border-gray-300'
-              }`}
-            />
-            {searchingClient && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-              </div>
-            )}
-          </div>
 
-          {/* Client trouvé */}
+          {/* Champ de recherche - visible uniquement si pas de client sélectionné */}
+          {!clientTrouve && (
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (!e.target.value) {
+                    setClientsResults([]);
+                    setShowResults(false);
+                  }
+                }}
+                onFocus={() => clientsResults.length > 0 && setShowResults(true)}
+                placeholder="Rechercher par nom ou téléphone..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+              {searchingClient && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                </div>
+              )}
+
+              {/* Liste des résultats */}
+              {showResults && clientsResults.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {clientsResults.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onClick={() => selectClient(client)}
+                      className="w-full p-3 text-left hover:bg-primary-50 flex items-center gap-3 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-semibold">
+                        {client.nom ? client.nom.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{client.nom || 'Sans nom'}</p>
+                        <p className="text-sm text-gray-500">{client.telephone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Bouton nouveau client si recherche sans résultat */}
+              {showResults && clientsResults.length === 0 && searchQuery.length >= 2 && !searchingClient && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <button
+                    type="button"
+                    onClick={prepareNewClient}
+                    className="w-full p-3 text-left hover:bg-orange-50 flex items-center gap-3 text-orange-700"
+                  >
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-semibold">
+                      +
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Nouveau client</p>
+                      <p className="text-sm text-orange-600">Créer "{searchQuery}"</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Client sélectionné */}
           {clientTrouve && clientTrouve !== false && (
             <div className="mt-2 space-y-2">
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
@@ -430,7 +512,20 @@ export function CommandeForm() {
                   <p className="font-medium text-green-800">{clientTrouve.nom || 'Sans nom'}</p>
                   <p className="text-sm text-green-600">{clientTrouve.telephone}</p>
                 </div>
-                <span className="text-green-600 text-xl">✓</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClientTrouve(null);
+                    setSelectedClientId('');
+                    setSearchQuery('');
+                    setTelephone('');
+                    setClientNom('');
+                    setUtiliserAvoir(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  ✕
+                </button>
               </div>
 
               {/* Option avoir si client a un solde */}
@@ -456,21 +551,40 @@ export function CommandeForm() {
             </div>
           )}
 
-          {/* Client non trouvé - formulaire création */}
-          {clientTrouve === false && telephone && (
-            <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="text-sm text-orange-700 mb-2">
-                Nouveau client - Entrez son nom (optionnel)
-              </p>
+          {/* Formulaire nouveau client */}
+          {clientTrouve === false && (
+            <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-orange-700">Nouveau client</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClientTrouve(null);
+                    setSearchQuery('');
+                    setTelephone('');
+                    setClientNom('');
+                  }}
+                  className="text-orange-400 hover:text-orange-600 text-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+              <input
+                type="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                placeholder="Téléphone *"
+                className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none bg-white"
+              />
               <input
                 type="text"
                 value={clientNom}
                 onChange={(e) => setClientNom(e.target.value)}
-                placeholder="Nom du client (optionnel)"
+                placeholder="Nom (optionnel)"
                 className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none bg-white"
               />
-              <p className="text-xs text-orange-600 mt-1">
-                Le client sera créé automatiquement à la validation
+              <p className="text-xs text-orange-600">
+                Le client sera créé à la validation
               </p>
             </div>
           )}
