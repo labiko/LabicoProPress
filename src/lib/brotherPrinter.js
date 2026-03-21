@@ -255,10 +255,12 @@ export function generateLabelImage(data) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Colonne 3: Date (aligne gauche)
-  ctx.font = 'bold 22px Arial';
+  // Colonne 3: Date + Heure (aligne gauche)
+  const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  ctx.font = 'bold 18px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText(date, col3X, middleY);
+  ctx.fillText(date, col3X, middleY - 12);
+  ctx.fillText(heure, col3X, middleY + 12);
 
   // Ligne de separation horizontale avant client
   ctx.beginPath();
