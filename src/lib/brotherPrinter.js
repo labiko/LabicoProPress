@@ -184,12 +184,13 @@ function getMediaInfoCommand(pageLength) {
 export function generateLabelImage(data) {
   const { pressingName, orderNumber, clientName, date } = data;
 
-  // Extrait les 3 derniers caracteres pour l'affichage principal
+  // Extrait le code court pour l'affichage principal
   const shortCode = orderNumber.slice(-4); // ex: "1-K7"
 
-  // Calcule la largeur basee sur le contenu
-  const labelWidth = 400; // pixels (environ 56mm)
+  // Layout en 4 colonnes horizontales
+  const labelWidth = 550; // Plus large pour 4 colonnes
   const labelHeight = CONFIG.TAPE_HEIGHT_PX; // 128 pixels
+  const centerY = labelHeight / 2; // Centre vertical
 
   // Cree un canvas temporaire
   const canvas = document.createElement('canvas');
@@ -201,39 +202,60 @@ export function generateLabelImage(data) {
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, labelWidth, labelHeight);
 
-  // Texte noir
+  // Texte noir, aligne a gauche
   ctx.fillStyle = 'black';
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
-  // Nom du pressing (haut) - plus gros et gras
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText(pressingName.toUpperCase(), labelWidth / 2, 16);
+  // Positions des colonnes (de gauche a droite)
+  const col1 = 5;    // Code court (grand)
+  const col2 = 130;  // Numero complet
+  const col3 = 300;  // Nom client
+  const col4 = 450;  // Date
 
-  // Ligne de separation - plus epaisse
+  // Colonne 1: Code court - TRES GRAND
+  ctx.font = 'bold 72px Arial';
+  ctx.fillText(shortCode, col1, centerY);
+
+  // Separateur vertical apres code court
   ctx.beginPath();
-  ctx.moveTo(10, 32);
-  ctx.lineTo(labelWidth - 10, 32);
+  ctx.moveTo(120, 10);
+  ctx.lineTo(120, labelHeight - 10);
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Code court (gros, centre) - BEAUCOUP plus gros
-  ctx.font = 'bold 56px Arial';
-  ctx.fillText(shortCode, labelWidth / 2, 70);
+  // Colonne 2: Numero complet + Pressing (2 lignes)
+  ctx.font = 'bold 24px Arial';
+  ctx.fillText(orderNumber, col2, centerY - 20);
+  ctx.font = '18px Arial';
+  const pressingText = pressingName.length > 15 ? pressingName.substring(0, 15) + '...' : pressingName;
+  ctx.fillText(pressingText, col2, centerY + 20);
 
-  // Numero complet - plus gros
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText(orderNumber, labelWidth / 2, 100);
+  // Separateur vertical
+  ctx.beginPath();
+  ctx.moveTo(290, 10);
+  ctx.lineTo(290, labelHeight - 10);
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
-  // Client - plus gros et gras
-  ctx.font = 'bold 14px Arial';
-  const clientText = clientName.length > 18 ? clientName.substring(0, 18) + '...' : clientName;
-  ctx.fillText(clientText, labelWidth / 2, 115);
+  // Colonne 3: Nom client
+  ctx.font = 'bold 28px Arial';
+  const clientText = clientName.length > 12 ? clientName.substring(0, 12) + '...' : clientName;
+  ctx.fillText(clientText, col3, centerY);
 
-  // Date - plus gros
-  ctx.font = '12px Arial';
-  ctx.fillText(date, labelWidth / 2, 128);
+  // Separateur vertical
+  ctx.beginPath();
+  ctx.moveTo(440, 10);
+  ctx.lineTo(440, labelHeight - 10);
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Colonne 4: Date
+  ctx.font = 'bold 22px Arial';
+  ctx.fillText(date, col4, centerY);
 
   // Recupere les donnees de l'image
   return ctx.getImageData(0, 0, labelWidth, labelHeight);
