@@ -230,7 +230,7 @@ export function generateLabelImage(data) {
   const col3X = 330;    // Date
 
   // Colonne 1: Code court - TRES GRAND (aligne gauche)
-  ctx.font = 'bold 72px Arial';
+  ctx.font = 'bold 60px Arial';
   ctx.textAlign = 'left';
   ctx.fillText(shortCode, col1X, middleY);
 
