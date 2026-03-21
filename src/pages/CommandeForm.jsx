@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { supabase } from '../lib/supabase';
+import LabelModal from '../components/LabelModal';
 
 export function CommandeForm() {
   const { id } = useParams();
@@ -35,6 +36,10 @@ export function CommandeForm() {
 
   // Utilisation avoir
   const [utiliserAvoir, setUtiliserAvoir] = useState(false);
+
+  // Modal impression etiquette
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelOrderData, setLabelOrderData] = useState(null);
 
   useEffect(() => {
     if (pressing?.id) {
@@ -390,6 +395,16 @@ export function CommandeForm() {
         }
 
         showSuccess(`Commande ${numero} créée${avoirUtilise > 0 ? ` (avoir -${avoirUtilise.toFixed(2)} EUR)` : ''}`);
+
+        // Afficher le modal d'impression d'étiquette
+        setLabelOrderData({
+          pressingName: pressing.nom,
+          orderNumber: numero,
+          clientName: clientTrouve?.nom || clientNom || 'Client',
+          date: new Date().toLocaleDateString('fr-FR')
+        });
+        setShowLabelModal(true);
+        return; // Ne pas naviguer, attendre fermeture du modal
       }
 
       navigate('/commandes');
@@ -786,6 +801,16 @@ export function CommandeForm() {
             : 'Créer la commande'}
         </button>
       </form>
+
+      {/* Modal impression etiquette */}
+      <LabelModal
+        isOpen={showLabelModal}
+        onClose={() => {
+          setShowLabelModal(false);
+          navigate('/commandes');
+        }}
+        orderData={labelOrderData}
+      />
     </div>
   );
 }
