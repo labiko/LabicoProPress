@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { login, register } from '../lib/auth';
+import { APP_VERSION } from '../version';
 
 export function Login() {
   const [isRegister, setIsRegister] = useState(false);
@@ -160,6 +161,11 @@ export function Login() {
             </button>
           </div>
         )}
+
+        {/* Version */}
+        <div className="mt-6 text-center">
+          <span className="text-gray-400 text-xs">v{APP_VERSION}</span>
+        </div>
       </div>
     </div>
   );
