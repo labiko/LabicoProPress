@@ -242,20 +242,25 @@ export function generateLabelImage(data) {
 /**
  * Convertit ImageData en donnees raster monochromes
  * L'image doit etre pivotee de 90 degres pour l'impression Brother
- * Le ruban sort de droite a gauche, donc on lit les colonnes de droite a gauche
+ *
+ * Brother PT-P710BT:
+ * - Chaque ligne raster = 128 bits (16 bytes) = hauteur du ruban 24mm
+ * - Bit 7 (MSB) = haut du ruban
+ * - Les lignes sont envoyees de gauche a droite (sens de sortie du ruban)
  */
 function imageToRaster(imageData) {
   const { width, height, data } = imageData;
   const rasterLines = [];
 
-  // Pour chaque colonne de l'image (de droite a gauche pour corriger le miroir)
-  for (let x = width - 1; x >= 0; x--) {
+  // Pour chaque colonne de l'image (de gauche a droite = sens du ruban)
+  for (let x = 0; x < width; x++) {
     const lineBytes = new Uint8Array(CONFIG.BYTES_PER_LINE);
 
-    // Pour chaque pixel de la colonne (de haut en bas)
+    // Pour chaque pixel de la colonne (de bas en haut pour orientation correcte)
     for (let y = 0; y < height && y < CONFIG.TAPE_HEIGHT_PX; y++) {
-      // Position dans le tableau RGBA
-      const idx = (y * width + x) * 4;
+      // Lire depuis le bas de l'image (height - 1 - y)
+      const srcY = height - 1 - y;
+      const idx = (srcY * width + x) * 4;
 
       // Convertit en niveau de gris
       const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
