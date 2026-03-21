@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 import { TabBar } from './TabBar';
+import { APP_VERSION } from '../version';
 
 export function Layout({ children }) {
   const { user, pressing, logout } = useAuth();
@@ -18,6 +19,7 @@ export function Layout({ children }) {
           <h1 className="font-semibold text-lg" title={displayName}>
             {truncatedName}
           </h1>
+          <span className="text-white/50 text-xs">v{APP_VERSION}</span>
         </div>
         {user && (
           <button
