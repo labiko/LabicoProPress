@@ -162,10 +162,11 @@ export function Login() {
           </div>
         )}
 
-        {/* Version */}
-        <div className="mt-6 text-center">
-          <span className="text-gray-400 text-xs">v{APP_VERSION}</span>
-        </div>
+      </div>
+
+      {/* Version en bas de l'ecran */}
+      <div className="absolute bottom-4 left-0 right-0 text-center">
+        <span className="text-white/60 text-xs">v{APP_VERSION}</span>
       </div>
     </div>
   );
