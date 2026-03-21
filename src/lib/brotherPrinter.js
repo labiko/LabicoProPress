@@ -252,8 +252,8 @@ function imageToRaster(imageData) {
   const { width, height, data } = imageData;
   const rasterLines = [];
 
-  // Pour chaque colonne de l'image (de gauche a droite = sens du ruban)
-  for (let x = 0; x < width; x++) {
+  // Pour chaque colonne de l'image (de DROITE a GAUCHE pour corriger l'effet miroir)
+  for (let x = width - 1; x >= 0; x--) {
     const lineBytes = new Uint8Array(CONFIG.BYTES_PER_LINE);
 
     // Pour chaque pixel de la colonne (de bas en haut pour orientation correcte)
