@@ -241,25 +241,26 @@ export function generateLabelImage(data) {
 
 /**
  * Convertit ImageData en donnees raster monochromes
- * L'image doit etre pivotee de 90 degres pour l'impression
+ * L'image doit etre pivotee de 90 degres pour l'impression Brother
+ * Le ruban sort de droite a gauche, donc on lit les colonnes de droite a gauche
  */
 function imageToRaster(imageData) {
   const { width, height, data } = imageData;
   const rasterLines = [];
 
-  // Pour chaque colonne de l'image (devient une ligne d'impression)
-  for (let x = 0; x < width; x++) {
+  // Pour chaque colonne de l'image (de droite a gauche pour corriger le miroir)
+  for (let x = width - 1; x >= 0; x--) {
     const lineBytes = new Uint8Array(CONFIG.BYTES_PER_LINE);
 
-    // Pour chaque pixel de la colonne
+    // Pour chaque pixel de la colonne (de haut en bas)
     for (let y = 0; y < height && y < CONFIG.TAPE_HEIGHT_PX; y++) {
       // Position dans le tableau RGBA
-      const idx = ((height - 1 - y) * width + x) * 4;
+      const idx = (y * width + x) * 4;
 
       // Convertit en niveau de gris
       const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
 
-      // Seuil pour noir/blanc (inverse: noir = 1, blanc = 0)
+      // Seuil pour noir/blanc (noir = 1, blanc = 0)
       const isBlack = gray < 128;
 
       if (isBlack) {
