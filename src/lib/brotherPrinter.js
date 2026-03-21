@@ -182,7 +182,7 @@ function getMediaInfoCommand(pageLength) {
  * @returns {ImageData} Image monochrome de l'etiquette
  */
 export function generateLabelImage(data) {
-  const { pressingName, orderNumber, clientName, date } = data;
+  const { pressingName, orderNumber, clientName, date, totalAmount = 0, nbArticles = 1 } = data;
 
   // Extrait le code court pour l'affichage principal
   const shortCode = orderNumber.slice(-4); // ex: "1-K7"
@@ -270,11 +270,14 @@ export function generateLabelImage(data) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // ========== LIGNE DU BAS: Nom du client (pleine largeur, centre) ==========
-  ctx.font = 'bold 20px Arial';
+  // ========== LIGNE DU BAS: Client + Prix + Nb articles ==========
+  // Format: "ClientName - 45.00 EUR × 3"
+  const prixFormate = parseFloat(totalAmount).toFixed(2);
+  const bottomText = `${clientName} - ${prixFormate} EUR x${nbArticles}`;
+  ctx.font = 'bold 18px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(clientName, labelWidth / 2, bottomRowY);
+  ctx.fillText(bottomText, labelWidth / 2, bottomRowY);
 
   // Recupere les donnees de l'image
   return ctx.getImageData(0, 0, labelWidth, labelHeight);

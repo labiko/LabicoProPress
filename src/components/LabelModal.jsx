@@ -14,11 +14,16 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
 
   useEffect(() => {
     if (isOpen && orderData) {
+      // Nombre de copies par defaut = nombre d'articles
+      setCopies(orderData.nbArticles || 1);
+
       const labelData = {
         pressingName: orderData.pressingName || 'PRESSING',
         orderNumber: orderData.orderNumber,
         clientName: orderData.clientName || 'Client',
-        date: orderData.date || new Date().toLocaleDateString('fr-FR')
+        date: orderData.date || new Date().toLocaleDateString('fr-FR'),
+        totalAmount: orderData.totalAmount || 0,
+        nbArticles: orderData.nbArticles || 1
       };
 
       const url = brotherPrinter.previewLabel(labelData);
@@ -64,7 +69,9 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
         pressingName: orderData.pressingName || 'PRESSING',
         orderNumber: orderData.orderNumber,
         clientName: orderData.clientName || 'Client',
-        date: orderData.date || new Date().toLocaleDateString('fr-FR')
+        date: orderData.date || new Date().toLocaleDateString('fr-FR'),
+        totalAmount: orderData.totalAmount || 0,
+        nbArticles: orderData.nbArticles || 1
       };
 
       await brotherPrinter.printLabel(labelData, copies);

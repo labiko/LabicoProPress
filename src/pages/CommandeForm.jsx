@@ -401,7 +401,9 @@ export function CommandeForm() {
           pressingName: pressing.nom,
           orderNumber: numero,
           clientName: clientTrouve?.nom || clientNom || 'Client',
-          date: new Date().toLocaleDateString('fr-FR')
+          date: new Date().toLocaleDateString('fr-FR'),
+          totalAmount: montantTotal,
+          nbArticles: nbVetements
         });
         setShowLabelModal(true);
         return; // Ne pas naviguer, attendre fermeture du modal
