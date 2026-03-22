@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 export function Dashboard() {
   const { pressing } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     commandesEnCours: 0,
     commandesPret: 0,
-    commandesAujourdHui: 0,
+    caAujourdHui: 0,
     totalClients: 0,
+    caMois: 0,
+    caTotal: 0,
   });
+  const [ca7Jours, setCa7Jours] = useState([]);
+  const [dernieresCommandes, setDernieresCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,41 +26,130 @@ export function Dashboard() {
 
   async function loadStats() {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
 
-      // Compter les commandes en cours
-      const { count: enCours } = await supabase
-        .from('commandes')
-        .select('*', { count: 'exact', head: true })
-        .eq('pressing_id', pressing.id)
-        .eq('statut', 'en_cours');
+      // Premier jour du mois en cours
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstDayOfMonthStr = firstDayOfMonth.toISOString().split('T')[0];
 
-      // Compter les commandes prêtes
-      const { count: pret } = await supabase
-        .from('commandes')
-        .select('*', { count: 'exact', head: true })
-        .eq('pressing_id', pressing.id)
-        .eq('statut', 'pret');
+      // Calculer les 7 derniers jours + 7 jours semaine passée
+      const last7Days = [];
+      const previous7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        last7Days.push(date.toISOString().split('T')[0]);
 
-      // Compter les commandes du jour
-      const { count: aujourdHui } = await supabase
-        .from('commandes')
-        .select('*', { count: 'exact', head: true })
-        .eq('pressing_id', pressing.id)
-        .gte('created_at', today);
+        // Même jour semaine passée
+        const datePrev = new Date(today);
+        datePrev.setDate(datePrev.getDate() - i - 7);
+        previous7Days.push(datePrev.toISOString().split('T')[0]);
+      }
 
-      // Compter les clients
-      const { count: clients } = await supabase
-        .from('clients')
-        .select('*', { count: 'exact', head: true })
-        .eq('pressing_id', pressing.id);
+      // Requêtes en parallèle
+      const [
+        enCoursRes,
+        pretRes,
+        clientsRes,
+        commandesRes,
+        dernieresRes,
+        caMoisRes,
+        caTotalRes
+      ] = await Promise.all([
+        // Commandes en cours
+        supabase
+          .from('commandes')
+          .select('*', { count: 'exact', head: true })
+          .eq('pressing_id', pressing.id)
+          .eq('statut', 'en_cours'),
+        // Commandes prêtes
+        supabase
+          .from('commandes')
+          .select('*', { count: 'exact', head: true })
+          .eq('pressing_id', pressing.id)
+          .eq('statut', 'pret'),
+        // Total clients
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('pressing_id', pressing.id),
+        // Commandes des 14 derniers jours (pour CA semaine + semaine passée)
+        supabase
+          .from('commandes')
+          .select('montant_total, created_at')
+          .eq('pressing_id', pressing.id)
+          .gte('created_at', previous7Days[0]),
+        // 5 dernières commandes
+        supabase
+          .from('commandes')
+          .select('*, clients(nom, telephone)')
+          .eq('pressing_id', pressing.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        // CA du mois en cours
+        supabase
+          .from('commandes')
+          .select('montant_total')
+          .eq('pressing_id', pressing.id)
+          .gte('created_at', firstDayOfMonthStr),
+        // CA total (toutes les commandes)
+        supabase
+          .from('commandes')
+          .select('montant_total')
+          .eq('pressing_id', pressing.id)
+      ]);
+
+      // Calculer CA par jour (cette semaine + semaine passée)
+      const caParJour = last7Days.map((dateStr, index) => {
+        // CA cette semaine
+        const commandesJour = (commandesRes.data || []).filter(cmd => {
+          const cmdDate = cmd.created_at.split('T')[0];
+          return cmdDate === dateStr;
+        });
+        const total = commandesJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
+
+        // CA semaine passée (même jour)
+        const datePrevStr = previous7Days[index];
+        const commandesPrev = (commandesRes.data || []).filter(cmd => {
+          const cmdDate = cmd.created_at.split('T')[0];
+          return cmdDate === datePrevStr;
+        });
+        const totalPrev = commandesPrev.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
+
+        const date = new Date(dateStr);
+        const jourNom = date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+        const dateFormatee = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        return {
+          date: dateStr,
+          jour: jourNom.charAt(0).toUpperCase() + jourNom.slice(1),
+          dateAffichee: dateFormatee,
+          montant: total,
+          montantPrev: totalPrev,
+          isToday: dateStr === todayStr
+        };
+      });
+
+      // CA aujourd'hui
+      const caToday = caParJour.find(j => j.isToday)?.montant || 0;
+
+      // Calculer CA du mois
+      const caMois = (caMoisRes.data || []).reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
+
+      // Calculer CA total
+      const caTotal = (caTotalRes.data || []).reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
 
       setStats({
-        commandesEnCours: enCours || 0,
-        commandesPret: pret || 0,
-        commandesAujourdHui: aujourdHui || 0,
-        totalClients: clients || 0,
+        commandesEnCours: enCoursRes.count || 0,
+        commandesPret: pretRes.count || 0,
+        caAujourdHui: caToday,
+        totalClients: clientsRes.count || 0,
+        caMois,
+        caTotal,
       });
+
+      setCa7Jours(caParJour);
+      setDernieresCommandes(dernieresRes.data || []);
     } catch (err) {
       console.error('Erreur chargement stats:', err);
     } finally {
@@ -74,6 +168,24 @@ export function Dashboard() {
   async function handleRefresh() {
     setLoading(true);
     await loadStats();
+  }
+
+  // Calculer le max pour l'échelle de l'histogramme
+  const maxCA = Math.max(...ca7Jours.map(j => j.montant), 1);
+  const totalSemaine = ca7Jours.reduce((sum, j) => sum + j.montant, 0);
+
+  // Fonction pour obtenir la couleur du statut
+  function getStatutBadge(statut) {
+    switch (statut) {
+      case 'en_cours':
+        return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'En cours' };
+      case 'pret':
+        return { bg: 'bg-green-100', text: 'text-green-700', label: 'Prêt' };
+      case 'livre':
+        return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Livré' };
+      default:
+        return { bg: 'bg-gray-100', text: 'text-gray-700', label: statut };
+    }
   }
 
   return (
@@ -95,7 +207,7 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* Cartes statistiques */}
+      {/* Cartes statistiques - 6 cartes */}
       <div className="grid grid-cols-2 gap-4">
         <StatCard
           icon="⏳"
@@ -110,10 +222,22 @@ export function Dashboard() {
           color="bg-green-50 text-green-700"
         />
         <StatCard
-          icon="📅"
-          label="Aujourd'hui"
-          value={stats.commandesAujourdHui}
+          icon="💰"
+          label="CA Aujourd'hui"
+          value={`${stats.caAujourdHui.toFixed(0)} €`}
           color="bg-blue-50 text-blue-700"
+        />
+        <StatCard
+          icon="📅"
+          label="CA Mois"
+          value={`${stats.caMois.toFixed(0)} €`}
+          color="bg-indigo-50 text-indigo-700"
+        />
+        <StatCard
+          icon="📊"
+          label="CA Total"
+          value={`${stats.caTotal.toFixed(0)} €`}
+          color="bg-emerald-50 text-emerald-700"
         />
         <StatCard
           icon="👥"
@@ -121,6 +245,99 @@ export function Dashboard() {
           value={stats.totalClients}
           color="bg-purple-50 text-purple-700"
         />
+      </div>
+
+      {/* Histogramme CA 7 derniers jours */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="font-semibold text-gray-900">CA 7 derniers jours</h3>
+          <span className="text-sm font-bold text-primary-600">({totalSemaine.toFixed(2)} €)</span>
+        </div>
+
+        <div className="flex items-end justify-between gap-2 h-32">
+          {ca7Jours.map((jour, index) => {
+            const height = maxCA > 0 ? (jour.montant / maxCA) * 100 : 0;
+            return (
+              <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                {/* Montant au-dessus */}
+                <span className="text-xs text-gray-500 font-medium">
+                  {jour.montant > 0 ? `${jour.montant.toFixed(0)}€` : ''}
+                </span>
+                {/* Barre */}
+                <div className="w-full flex flex-col justify-end h-20">
+                  <div
+                    className={`w-full rounded-t-md transition-all ${
+                      jour.isToday
+                        ? 'bg-gradient-to-t from-primary-600 to-primary-400'
+                        : 'bg-gradient-to-t from-gray-300 to-gray-200'
+                    }`}
+                    style={{ height: `${Math.max(height, jour.montant > 0 ? 8 : 2)}%` }}
+                  />
+                </div>
+                {/* Jour + Date + CA semaine passée */}
+                <div className="text-center">
+                  <span className={`text-xs font-medium block ${jour.isToday ? 'text-primary-600' : 'text-gray-500'}`}>
+                    {jour.jour}
+                  </span>
+                  <span className={`text-[10px] block ${jour.isToday ? 'text-primary-500' : 'text-gray-400'}`}>
+                    {jour.dateAffichee}
+                  </span>
+                  <span className="text-[9px] text-gray-400 block">
+                    {jour.montantPrev > 0 ? `(${jour.montantPrev.toFixed(0)}€)` : '-'}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dernières commandes */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Dernières commandes</h3>
+          <Link to="/commandes" className="text-sm text-primary-600 font-medium">
+            Voir tout
+          </Link>
+        </div>
+
+        {dernieresCommandes.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <span className="text-3xl">📋</span>
+            <p className="mt-2">Aucune commande</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {dernieresCommandes.map((cmd) => {
+              const badge = getStatutBadge(cmd.statut);
+              return (
+                <button
+                  key={cmd.id}
+                  onClick={() => navigate(`/commandes/${cmd.id}`)}
+                  className="w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{cmd.numero}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
+                      {cmd.clients?.nom || cmd.clients?.telephone || 'Client'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{parseFloat(cmd.montant_total).toFixed(2)} €</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(cmd.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Actions rapides */}
@@ -135,17 +352,6 @@ export function Dashboard() {
           <div>
             <p className="font-semibold">Nouvelle commande</p>
             <p className="text-sm opacity-80">Créer une commande client</p>
-          </div>
-        </Link>
-
-        <Link
-          to="/clients/nouveau"
-          className="flex items-center gap-3 bg-white border border-gray-200 p-4 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          <span className="text-2xl">👤</span>
-          <div>
-            <p className="font-semibold text-gray-900">Nouveau client</p>
-            <p className="text-sm text-gray-500">Ajouter un client</p>
           </div>
         </Link>
 
