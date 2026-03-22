@@ -254,7 +254,7 @@ export function Dashboard() {
           <span className="text-sm font-bold text-primary-600">({totalSemaine.toFixed(2)} €)</span>
         </div>
 
-        <div className="flex items-end justify-between gap-2 h-32">
+        <div className="flex items-end justify-between gap-2 h-40">
           {ca7Jours.map((jour, index) => {
             const height = maxCA > 0 ? (jour.montant / maxCA) * 100 : 0;
             const diff = jour.montant - jour.montantPrev;
@@ -274,7 +274,7 @@ export function Dashboard() {
                   )}
                 </div>
                 {/* Barre */}
-                <div className="w-full flex flex-col justify-end h-20">
+                <div className="w-full flex flex-col justify-end h-24">
                   <div
                     className={`w-full rounded-t-md transition-all ${
                       jour.isToday
