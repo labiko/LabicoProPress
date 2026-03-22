@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { supabase } from '../lib/supabase';
+import { envoyerSmsCommandeCreee } from '../lib/sms';
 import LabelModal from '../components/LabelModal';
 
 export function CommandeForm() {
@@ -394,7 +395,20 @@ export function CommandeForm() {
             .eq('id', clientId);
         }
 
-        showSuccess(`Commande ${numero} créée${avoirUtilise > 0 ? ` (avoir -${avoirUtilise.toFixed(2)} EUR)` : ''}`);
+        // Envoyer SMS de confirmation au client
+        const commandeForSms = {
+          id: data.id,
+          numero: numero,
+          nb_vetements: nbVetements,
+          montant_total: montantTotal,
+          clients: {
+            telephone: telephone,
+            nom: clientTrouve?.nom || clientNom || null
+          }
+        };
+        const smsResult = await envoyerSmsCommandeCreee(commandeForSms, pressing);
+
+        showSuccess(`Commande ${numero} créée${smsResult.success ? ' - SMS envoyé' : ''}${avoirUtilise > 0 ? ` (avoir -${avoirUtilise.toFixed(2)} EUR)` : ''}`);
 
         // Afficher le modal d'impression d'étiquette
         setLabelOrderData({
