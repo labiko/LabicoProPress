@@ -362,17 +362,30 @@ export function Dashboard() {
           )}
         </p>
 
-        <div className={`flex items-end justify-between gap-2 h-40 ${loadingHistogram ? 'opacity-50' : ''}`}>
+        {/* Histogramme 3D avec perspective */}
+        <div
+          className={`flex items-end justify-between gap-3 h-44 ${loadingHistogram ? 'opacity-50' : ''}`}
+          style={{ perspective: '800px' }}
+        >
           {ca7Jours.map((jour, index) => {
             const height = maxCA > 0 ? (jour.montant / maxCA) * 100 : 0;
+            const barHeight = Math.max(height, jour.montant > 0 ? 10 : 3);
             const diff = jour.montant - jour.montantPrev;
             const isGain = diff > 0;
             const isLoss = diff < 0;
+
+            // Couleurs pour les barres 3D
+            const frontColor = jour.isToday
+              ? 'linear-gradient(180deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%)'
+              : 'linear-gradient(180deg, #94a3b8 0%, #64748b 50%, #475569 100%)';
+            const topColor = jour.isToday ? '#818cf8' : '#cbd5e1';
+            const sideColor = jour.isToday ? '#3730a3' : '#334155';
+
             return (
-              <div key={index} className="flex-1 flex flex-col items-center gap-1">
+              <div key={index} className="flex-1 flex flex-col items-center gap-1 group">
                 {/* Montant au-dessus avec indicateur gain/perte */}
                 <div className="flex items-center gap-0.5">
-                  <span className="text-xs text-gray-500 font-medium">
+                  <span className="text-xs text-gray-600 font-semibold">
                     {jour.montant > 0 ? `${jour.montant.toFixed(0)}€` : ''}
                   </span>
                   {jour.montant > 0 && jour.montantPrev > 0 && (
@@ -381,20 +394,79 @@ export function Dashboard() {
                     </span>
                   )}
                 </div>
-                {/* Barre */}
-                <div className="w-full flex flex-col justify-end h-24">
+
+                {/* Barre 3D */}
+                <div className="w-full flex flex-col justify-end h-28 relative">
                   <div
-                    className={`w-full rounded-t-md transition-all ${
-                      jour.isToday
-                        ? 'bg-gradient-to-t from-primary-600 to-primary-400'
-                        : 'bg-gradient-to-t from-gray-300 to-gray-200'
-                    }`}
-                    style={{ height: `${Math.max(height, jour.montant > 0 ? 8 : 2)}%` }}
+                    className="relative transition-all duration-300 ease-out group-hover:scale-105 group-hover:-translate-y-1"
+                    style={{
+                      height: `${barHeight}%`,
+                      transformStyle: 'preserve-3d',
+                      transform: 'rotateX(-5deg) rotateY(10deg)',
+                    }}
+                  >
+                    {/* Face avant */}
+                    <div
+                      className="absolute inset-0 rounded-t-md"
+                      style={{
+                        background: frontColor,
+                        boxShadow: jour.isToday
+                          ? '0 4px 20px rgba(99, 102, 241, 0.4)'
+                          : '0 4px 15px rgba(100, 116, 139, 0.3)',
+                        transform: 'translateZ(6px)',
+                      }}
+                    />
+
+                    {/* Face supérieure (top) */}
+                    <div
+                      className="absolute w-full rounded-t-sm"
+                      style={{
+                        height: '12px',
+                        top: '-6px',
+                        background: topColor,
+                        transform: 'rotateX(60deg) translateZ(0px)',
+                        transformOrigin: 'bottom',
+                      }}
+                    />
+
+                    {/* Face droite (side) */}
+                    <div
+                      className="absolute top-0 bottom-0 rounded-r-sm"
+                      style={{
+                        width: '12px',
+                        right: '-6px',
+                        background: sideColor,
+                        transform: 'rotateY(60deg) translateZ(0px)',
+                        transformOrigin: 'left',
+                      }}
+                    />
+
+                    {/* Reflet lumineux sur la face avant */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1/3 rounded-t-md opacity-30"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, transparent 100%)',
+                        transform: 'translateZ(7px)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Ombre au sol */}
+                  <div
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full blur-sm transition-all duration-300 group-hover:blur-md"
+                    style={{
+                      width: '80%',
+                      height: '6px',
+                      background: jour.isToday
+                        ? 'rgba(99, 102, 241, 0.3)'
+                        : 'rgba(100, 116, 139, 0.2)',
+                    }}
                   />
                 </div>
+
                 {/* Jour + Date + CA semaine passée */}
                 <div className="text-center">
-                  <span className={`text-xs font-medium block ${jour.isToday ? 'text-primary-600' : 'text-gray-500'}`}>
+                  <span className={`text-xs font-semibold block ${jour.isToday ? 'text-primary-600' : 'text-gray-600'}`}>
                     {jour.jour}
                   </span>
                   <span className={`text-[10px] block ${jour.isToday ? 'text-primary-500' : 'text-gray-400'}`}>
