@@ -30,7 +30,12 @@ const TEMPLATES = {
 
   [SMS_TYPES.COMMANDE_CREEE]: (data) => {
     const prix = parseFloat(data.montantTotal || 0).toFixed(2);
-    return `${data.nomPressing}\n\nBonjour ${data.nomClient || ''},\n\nVotre commande n${data.numeroCommande} a bien ete enregistree.\n\n${data.nbVetements} article(s) - ${prix} EUR\n\nNous vous previendrons des qu'elle sera prete.\n\nMerci !`;
+    let msg = `${data.nomPressing}\n\nBonjour ${data.nomClient || ''},\n\nVotre commande n${data.numeroCommande} a bien ete enregistree.\n\n${data.nbVetements} article(s) - ${prix} EUR`;
+    if (data.adressePressing) {
+      msg += `\n\nAdresse: ${data.adressePressing}`;
+    }
+    msg += `\n\nNous vous previendrons des qu'elle sera prete.\n\nMerci !`;
+    return msg;
   },
 
   [SMS_TYPES.REMERCIEMENT]: (data) =>
@@ -202,6 +207,7 @@ export async function envoyerSmsCommandeCreee(commande, pressing) {
     nomClient: commande.clients?.nom,
     numeroCommande: commande.numero,
     nomPressing: pressing.nom,
+    adressePressing: pressing.adresse,
     nbVetements: commande.nb_vetements,
     montantTotal: commande.montant_total,
   }, commande.id);

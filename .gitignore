@@ -25,3 +25,4 @@ Thumbs.db
 SUPABASE_CONFIG.md
 
 .vercel
+.claude/settings.local.json
