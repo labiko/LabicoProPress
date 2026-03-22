@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as brotherPrinter from '../lib/brotherPrinter';
 
-export default function LabelModal({ isOpen, onClose, orderData }) {
+export default function LabelModal({ isOpen, onClose, orderData, onConfirm, isConfirming = false }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -9,6 +9,7 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
   const [copies, setCopies] = useState(1);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const isSupported = brotherPrinter.isSupported();
 
@@ -16,6 +17,9 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
     if (isOpen && orderData) {
       // Nombre de copies par defaut = nombre d'articles
       setCopies(orderData.nbArticles || 1);
+      setIsConfirmed(false);
+      setError(null);
+      setSuccess(null);
 
       const labelData = {
         pressingName: orderData.pressingName || 'PRESSING',
@@ -74,16 +78,49 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
         nbArticles: orderData.nbArticles || 1
       };
 
+      // IMPRIMER D'ABORD
       await brotherPrinter.printLabel(labelData, copies);
-      setSuccess(`${copies} etiquette(s) imprimee(s)`);
+
+      // PUIS creer la commande si impression reussie
+      if (onConfirm && !isConfirmed) {
+        const confirmSuccess = await onConfirm();
+        if (!confirmSuccess) {
+          setError('Erreur lors de la creation de la commande');
+          setIsPrinting(false);
+          return;
+        }
+        setIsConfirmed(true);
+      }
+
+      setSuccess(`${copies} etiquette(s) imprimee(s) - Commande creee`);
       setTimeout(() => {
         setSuccess(null);
         onClose();
       }, 2000);
     } catch (err) {
+      // En cas d'erreur d'impression, la commande n'est PAS creee
       setError(`Erreur d'impression: ${err.message}`);
     } finally {
       setIsPrinting(false);
+    }
+  };
+
+  // Valider sans imprimer
+  const handleConfirmWithoutPrint = async () => {
+    setError(null);
+
+    if (onConfirm && !isConfirmed) {
+      const confirmSuccess = await onConfirm();
+      if (confirmSuccess) {
+        setIsConfirmed(true);
+        setSuccess('Commande creee');
+        setTimeout(() => {
+          setSuccess(null);
+          onClose();
+        }, 1500);
+      }
+    } else {
+      onClose();
     }
   };
 
@@ -193,35 +230,51 @@ export default function LabelModal({ isOpen, onClose, orderData }) {
         </div>
 
         {/* Boutons action */}
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Fermer
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={!isConnected || isPrinting || !isSupported}
-            className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isPrinting ? (
-              <>
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Impression...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Imprimer
-              </>
-            )}
-          </button>
+        <div className="space-y-2">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={isConfirming || isPrinting}
+              className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {isConfirmed ? 'Fermer' : 'Annuler'}
+            </button>
+            <button
+              onClick={handlePrint}
+              disabled={!isConnected || isPrinting || isConfirming || !isSupported}
+              className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isPrinting || isConfirming ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  {isConfirming ? 'Creation...' : 'Impression...'}
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimer
+                </>
+              )}
+            </button>
+          </div>
+          {/* Bouton valider sans imprimer */}
+          {onConfirm && !isConfirmed && (
+            <button
+              onClick={handleConfirmWithoutPrint}
+              disabled={isConfirming || isPrinting}
+              className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Valider sans imprimer
+            </button>
+          )}
         </div>
 
         {/* Aide */}

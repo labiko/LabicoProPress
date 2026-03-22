@@ -41,6 +41,8 @@ export function CommandeForm() {
   // Modal impression etiquette
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [labelOrderData, setLabelOrderData] = useState(null);
+  const [pendingOrderData, setPendingOrderData] = useState(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (pressing?.id) {
@@ -285,6 +287,89 @@ export function CommandeForm() {
     return `${annee}-${numero}-${suffixe}`;
   }
 
+  // Fonction qui crée réellement la commande (appelée depuis LabelModal)
+  async function confirmOrder() {
+    if (!pendingOrderData) return false;
+
+    setIsConfirming(true);
+
+    try {
+      const { clientId, numero, lignesData, avoirData } = pendingOrderData;
+
+      // Créer la commande en DB
+      const { data, error } = await supabase
+        .from('commandes')
+        .insert({
+          pressing_id: pressing.id,
+          client_id: clientId,
+          numero,
+          nb_vetements: nbVetements,
+          montant_total: montantTotal,
+          notes: notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Créer les lignes
+      if (lignesData.length > 0) {
+        const lignesInsert = lignesData.map(l => ({
+          commande_id: data.id,
+          article_id: l.article_id,
+          article_nom: l.article_nom,
+          quantite: l.quantite,
+          prix_unitaire: l.prix_unitaire,
+          sous_total: l.prix_unitaire * l.quantite
+        }));
+        await supabase.from('lignes_commande').insert(lignesInsert);
+      }
+
+      // Utiliser l'avoir si coché
+      if (avoirData && avoirData.montant > 0) {
+        await supabase.from('avoirs').insert({
+          pressing_id: pressing.id,
+          client_id: clientId,
+          commande_id: data.id,
+          montant: avoirData.montant,
+          type: 'debit',
+          motif: 'utilisation',
+          notes: `Utilisé pour commande ${numero}`,
+        });
+
+        // Mettre à jour solde client
+        const nouveauSolde = Math.max(0, avoirData.soldeActuel - avoirData.montant);
+        await supabase
+          .from('clients')
+          .update({ solde_avoir: nouveauSolde })
+          .eq('id', clientId);
+      }
+
+      // Envoyer SMS de confirmation au client
+      const commandeForSms = {
+        id: data.id,
+        numero: numero,
+        nb_vetements: nbVetements,
+        montant_total: montantTotal,
+        clients: {
+          telephone: telephone,
+          nom: clientTrouve?.nom || clientNom || null
+        }
+      };
+      const smsResult = await envoyerSmsCommandeCreee(commandeForSms, pressing);
+
+      showSuccess(`Commande ${numero} créée${smsResult.success ? ' - SMS envoyé' : ''}${avoirData?.montant > 0 ? ` (avoir -${avoirData.montant.toFixed(2)} EUR)` : ''}`);
+
+      return true;
+    } catch (err) {
+      console.error('Erreur création commande:', err);
+      showError('Erreur lors de la création de la commande');
+      return false;
+    } finally {
+      setIsConfirming(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!pressing?.id) return;
@@ -312,7 +397,7 @@ export function CommandeForm() {
       }
 
       if (isEdit) {
-        // Mise à jour commande
+        // Mise à jour commande existante
         const { error } = await supabase
           .from('commandes')
           .update({
@@ -342,75 +427,24 @@ export function CommandeForm() {
         }
 
         showSuccess('Commande modifiée');
+        navigate('/commandes');
       } else {
-        // Création
+        // NOUVELLE COMMANDE: Préparer les données et afficher le modal
+        // La commande sera créée seulement au clic sur "Imprimer" ou "Valider sans imprimer"
         const numero = await genererNumero();
 
-        const { data, error } = await supabase
-          .from('commandes')
-          .insert({
-            pressing_id: pressing.id,
-            client_id: clientId,
-            numero,
-            nb_vetements: nbVetements,
-            montant_total: montantTotal,
-            notes: notes || null,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Créer les lignes
-        if (lignes.length > 0) {
-          const lignesInsert = lignes.map(l => ({
-            commande_id: data.id,
-            article_id: l.article_id,
-            article_nom: l.article_nom,
-            quantite: l.quantite,
-            prix_unitaire: l.prix_unitaire,
-            sous_total: l.prix_unitaire * l.quantite
-          }));
-          await supabase.from('lignes_commande').insert(lignesInsert);
-        }
-
-        // Utiliser l'avoir si coché
-        if (utiliserAvoir && avoirUtilise > 0) {
-          // Créer avoir type debit
-          await supabase.from('avoirs').insert({
-            pressing_id: pressing.id,
-            client_id: clientId,
-            commande_id: data.id,
+        // Stocker les données pour la création différée
+        setPendingOrderData({
+          clientId,
+          numero,
+          lignesData: [...lignes],
+          avoirData: utiliserAvoir && avoirUtilise > 0 ? {
             montant: avoirUtilise,
-            type: 'debit',
-            motif: 'utilisation',
-            notes: `Utilisé pour commande ${numero}`,
-          });
+            soldeActuel: soldeAvoir
+          } : null
+        });
 
-          // Mettre à jour solde client
-          const nouveauSolde = Math.max(0, soldeAvoir - avoirUtilise);
-          await supabase
-            .from('clients')
-            .update({ solde_avoir: nouveauSolde })
-            .eq('id', clientId);
-        }
-
-        // Envoyer SMS de confirmation au client
-        const commandeForSms = {
-          id: data.id,
-          numero: numero,
-          nb_vetements: nbVetements,
-          montant_total: montantTotal,
-          clients: {
-            telephone: telephone,
-            nom: clientTrouve?.nom || clientNom || null
-          }
-        };
-        const smsResult = await envoyerSmsCommandeCreee(commandeForSms, pressing);
-
-        showSuccess(`Commande ${numero} créée${smsResult.success ? ' - SMS envoyé' : ''}${avoirUtilise > 0 ? ` (avoir -${avoirUtilise.toFixed(2)} EUR)` : ''}`);
-
-        // Afficher le modal d'impression d'étiquette
+        // Préparer les données pour l'aperçu étiquette
         setLabelOrderData({
           pressingName: pressing.nom,
           orderNumber: numero,
@@ -419,11 +453,10 @@ export function CommandeForm() {
           totalAmount: montantTotal,
           nbArticles: nbVetements
         });
-        setShowLabelModal(true);
-        return; // Ne pas naviguer, attendre fermeture du modal
-      }
 
-      navigate('/commandes');
+        // Afficher le modal (la commande n'est PAS encore créée)
+        setShowLabelModal(true);
+      }
     } catch (err) {
       console.error('Erreur sauvegarde commande:', err);
       showError('Erreur lors de la sauvegarde');
@@ -823,9 +856,12 @@ export function CommandeForm() {
         isOpen={showLabelModal}
         onClose={() => {
           setShowLabelModal(false);
+          setPendingOrderData(null);
           navigate('/commandes');
         }}
         orderData={labelOrderData}
+        onConfirm={confirmOrder}
+        isConfirming={isConfirming}
       />
     </div>
   );
