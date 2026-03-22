@@ -17,12 +17,21 @@ export function Dashboard() {
   const [ca7Jours, setCa7Jours] = useState([]);
   const [dernieresCommandes, setDernieresCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = semaine actuelle, -1 = semaine passée, etc.
+  const [loadingHistogram, setLoadingHistogram] = useState(false);
 
   useEffect(() => {
     if (pressing?.id) {
       loadStats();
     }
   }, [pressing?.id]);
+
+  // Recharger l'histogramme quand weekOffset change
+  useEffect(() => {
+    if (pressing?.id && !loading) {
+      loadHistogramData(weekOffset);
+    }
+  }, [weekOffset]);
 
   async function loadStats() {
     try {
@@ -157,6 +166,71 @@ export function Dashboard() {
     }
   }
 
+  // Charger uniquement les données de l'histogramme (pour navigation entre semaines)
+  async function loadHistogramData(offset) {
+    setLoadingHistogram(true);
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Calculer les 7 jours de la semaine sélectionnée
+      const selected7Days = [];
+      const previous7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i + (offset * 7));
+        selected7Days.push(date.toISOString().split('T')[0]);
+
+        // Même jour semaine passée (par rapport à la semaine sélectionnée)
+        const datePrev = new Date(today);
+        datePrev.setDate(datePrev.getDate() - i + (offset * 7) - 7);
+        previous7Days.push(datePrev.toISOString().split('T')[0]);
+      }
+
+      // Récupérer les commandes de la période
+      const { data: commandesData } = await supabase
+        .from('commandes')
+        .select('montant_total, created_at')
+        .eq('pressing_id', pressing.id)
+        .gte('created_at', previous7Days[0])
+        .lte('created_at', selected7Days[6] + 'T23:59:59');
+
+      // Calculer CA par jour
+      const caParJour = selected7Days.map((dateStr, index) => {
+        const commandesJour = (commandesData || []).filter(cmd => {
+          const cmdDate = cmd.created_at.split('T')[0];
+          return cmdDate === dateStr;
+        });
+        const total = commandesJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
+
+        const datePrevStr = previous7Days[index];
+        const commandesPrev = (commandesData || []).filter(cmd => {
+          const cmdDate = cmd.created_at.split('T')[0];
+          return cmdDate === datePrevStr;
+        });
+        const totalPrev = commandesPrev.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
+
+        const date = new Date(dateStr);
+        const jourNom = date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+        const dateFormatee = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        return {
+          date: dateStr,
+          jour: jourNom.charAt(0).toUpperCase() + jourNom.slice(1),
+          dateAffichee: dateFormatee,
+          montant: total,
+          montantPrev: totalPrev,
+          isToday: dateStr === todayStr
+        };
+      });
+
+      setCa7Jours(caParJour);
+    } catch (err) {
+      console.error('Erreur chargement histogramme:', err);
+    } finally {
+      setLoadingHistogram(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -247,14 +321,48 @@ export function Dashboard() {
         />
       </div>
 
-      {/* Histogramme CA 7 derniers jours */}
+      {/* Histogramme CA 7 jours avec navigation */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <h3 className="font-semibold text-gray-900">CA 7 derniers jours</h3>
-          <span className="text-sm font-bold text-primary-600">({totalSemaine.toFixed(2)} €)</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900">Chiffre d'affaires</h3>
+            <span className="text-sm font-bold text-primary-600">({totalSemaine.toFixed(2)} €)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setWeekOffset(prev => prev - 1)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Semaine précédente"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setWeekOffset(prev => Math.min(prev + 1, 0))}
+              disabled={weekOffset >= 0}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Semaine suivante"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
+        {/* Période affichée */}
+        <p className="text-xs text-gray-500 mb-3">
+          {ca7Jours.length > 0 && (
+            <>
+              {ca7Jours[0]?.dateAffichee} - {ca7Jours[6]?.dateAffichee}
+              {weekOffset === 0 && <span className="ml-1 text-primary-600">(Cette semaine)</span>}
+              {weekOffset === -1 && <span className="ml-1 text-gray-400">(Semaine dernière)</span>}
+              {weekOffset < -1 && <span className="ml-1 text-gray-400">(Il y a {Math.abs(weekOffset)} semaines)</span>}
+            </>
+          )}
+        </p>
 
-        <div className="flex items-end justify-between gap-2 h-40">
+        <div className={`flex items-end justify-between gap-2 h-40 ${loadingHistogram ? 'opacity-50' : ''}`}>
           {ca7Jours.map((jour, index) => {
             const height = maxCA > 0 ? (jour.montant / maxCA) * 100 : 0;
             const diff = jour.montant - jour.montantPrev;
