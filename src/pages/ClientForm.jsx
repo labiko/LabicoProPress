@@ -18,11 +18,38 @@ export function ClientForm() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
 
+  // Pour détecter les doublons de téléphone
+  const [clientExistant, setClientExistant] = useState(null);
+  const [checkingPhone, setCheckingPhone] = useState(false);
+
   useEffect(() => {
     if (isEdit) {
       loadClient();
     }
   }, [id]);
+
+  // Vérifier si le téléphone existe déjà (seulement en mode création)
+  useEffect(() => {
+    if (isEdit || !telephone || telephone.length < 4 || !pressing?.id) {
+      setClientExistant(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingPhone(true);
+      const phoneQuery = telephone.replace(/[\s-]/g, '');
+      const { data } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('pressing_id', pressing.id)
+        .eq('telephone', phoneQuery)
+        .single();
+
+      setClientExistant(data || null);
+      setCheckingPhone(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [telephone, pressing?.id, isEdit]);
 
   async function loadClient() {
     try {
@@ -131,15 +158,47 @@ export function ClientForm() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Téléphone *
           </label>
-          <input
-            type="tel"
-            value={telephone}
-            onChange={(e) => setTelephone(e.target.value)}
-            placeholder="06 12 34 56 78"
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          />
+          <div className="relative">
+            <input
+              type="tel"
+              value={telephone}
+              onChange={(e) => setTelephone(e.target.value)}
+              placeholder="06 12 34 56 78"
+              required
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
+                clientExistant ? 'border-green-300 bg-green-50' : 'border-gray-300'
+              }`}
+            />
+            {checkingPhone && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Message client existant */}
+        {clientExistant && !isEdit && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-semibold">
+                {clientExistant.nom ? clientExistant.nom.charAt(0).toUpperCase() : '?'}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-green-600 font-medium mb-0.5">Client existant</p>
+                <p className="font-medium text-green-800">{clientExistant.nom || 'Sans nom'}</p>
+                <p className="text-sm text-green-600">{clientExistant.telephone}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/clients/${clientExistant.id}`)}
+              className="mt-3 w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              Voir ce client
+            </button>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -150,14 +209,17 @@ export function ClientForm() {
             value={nom}
             onChange={(e) => setNom(e.target.value)}
             placeholder="Nom du client"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            disabled={!!clientExistant && !isEdit}
+            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none ${
+              clientExistant && !isEdit ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''
+            }`}
           />
         </div>
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
+          disabled={loading || (!!clientExistant && !isEdit)}
+          className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Ajouter'}
         </button>

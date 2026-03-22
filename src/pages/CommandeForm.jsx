@@ -83,7 +83,24 @@ export function CommandeForm() {
 
     setSearchingClient(true);
     try {
-      // Recherche par téléphone OU par nom (ilike pour insensible à la casse)
+      // D'abord vérifier si le téléphone exact existe (priorité)
+      const phoneQuery = query.replace(/[\s-]/g, '');
+      const { data: exactMatch } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('pressing_id', pressing.id)
+        .eq('telephone', phoneQuery)
+        .single();
+
+      // Si téléphone exact trouvé → auto-sélectionner et bloquer
+      if (exactMatch) {
+        selectClient(exactMatch);
+        setClientsResults([]);
+        setShowResults(false);
+        return;
+      }
+
+      // Sinon recherche par téléphone OU par nom (ilike pour insensible à la casse)
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -96,11 +113,6 @@ export function CommandeForm() {
 
       setClientsResults(data || []);
       setShowResults(true);
-
-      // Si un seul résultat exact par téléphone, le sélectionner automatiquement
-      if (data?.length === 1 && data[0].telephone === query) {
-        selectClient(data[0]);
-      }
     } catch (err) {
       console.error('Erreur recherche client:', err);
       setClientsResults([]);
@@ -175,6 +187,27 @@ export function CommandeForm() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, pressing?.id]);
+
+  // Vérifier si le téléphone existe déjà quand on est en mode "nouveau client"
+  useEffect(() => {
+    if (clientTrouve !== false || !telephone || telephone.length < 4 || !pressing?.id) return;
+
+    const timer = setTimeout(async () => {
+      const phoneQuery = telephone.replace(/[\s-]/g, '');
+      const { data } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('pressing_id', pressing.id)
+        .eq('telephone', phoneQuery)
+        .single();
+
+      // Si téléphone existe → auto-sélectionner ce client
+      if (data) {
+        selectClient(data);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [telephone, pressing?.id, clientTrouve]);
 
   async function loadCommande() {
     try {
@@ -573,6 +606,7 @@ export function CommandeForm() {
                   {clientTrouve.nom ? clientTrouve.nom.charAt(0).toUpperCase() : '?'}
                 </div>
                 <div className="flex-1">
+                  <p className="text-xs text-green-600 font-medium mb-0.5">Client existant</p>
                   <p className="font-medium text-green-800">{clientTrouve.nom || 'Sans nom'}</p>
                   <p className="text-sm text-green-600">{clientTrouve.telephone}</p>
                 </div>

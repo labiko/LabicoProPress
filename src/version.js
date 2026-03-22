@@ -1,2 +1,2 @@
 // Version de l'application - A incrementer avant chaque commit
-export const APP_VERSION = '1.1.19';
+export const APP_VERSION = '1.1.20';
