@@ -257,12 +257,22 @@ export function Dashboard() {
         <div className="flex items-end justify-between gap-2 h-32">
           {ca7Jours.map((jour, index) => {
             const height = maxCA > 0 ? (jour.montant / maxCA) * 100 : 0;
+            const diff = jour.montant - jour.montantPrev;
+            const isGain = diff > 0;
+            const isLoss = diff < 0;
             return (
               <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                {/* Montant au-dessus */}
-                <span className="text-xs text-gray-500 font-medium">
-                  {jour.montant > 0 ? `${jour.montant.toFixed(0)}€` : ''}
-                </span>
+                {/* Montant au-dessus avec indicateur gain/perte */}
+                <div className="flex items-center gap-0.5">
+                  <span className="text-xs text-gray-500 font-medium">
+                    {jour.montant > 0 ? `${jour.montant.toFixed(0)}€` : ''}
+                  </span>
+                  {jour.montant > 0 && jour.montantPrev > 0 && (
+                    <span className={`text-[10px] font-bold ${isGain ? 'text-green-600' : isLoss ? 'text-red-600' : 'text-gray-400'}`}>
+                      {isGain ? '↑' : isLoss ? '↓' : '='}
+                    </span>
+                  )}
+                </div>
                 {/* Barre */}
                 <div className="w-full flex flex-col justify-end h-20">
                   <div
@@ -282,7 +292,7 @@ export function Dashboard() {
                   <span className={`text-[10px] block ${jour.isToday ? 'text-primary-500' : 'text-gray-400'}`}>
                     {jour.dateAffichee}
                   </span>
-                  <span className="text-[9px] text-gray-400 block">
+                  <span className={`text-[9px] font-medium block ${isGain ? 'text-green-600' : isLoss ? 'text-red-600' : 'text-gray-400'}`}>
                     {jour.montantPrev > 0 ? `(${jour.montantPrev.toFixed(0)}€)` : '-'}
                   </span>
                 </div>
@@ -372,10 +382,12 @@ export function Dashboard() {
 
 function StatCard({ icon, label, value, color }) {
   return (
-    <div className={`${color} p-4 rounded-xl`}>
-      <span className="text-2xl">{icon}</span>
-      <p className="text-2xl font-bold mt-2">{value}</p>
-      <p className="text-sm opacity-80">{label}</p>
+    <div className={`${color} p-3 rounded-xl`}>
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{icon}</span>
+        <p className="text-xs opacity-80">{label}</p>
+      </div>
+      <p className="text-xl font-bold mt-1">{value}</p>
     </div>
   );
 }
