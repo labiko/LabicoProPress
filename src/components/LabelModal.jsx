@@ -105,25 +105,6 @@ export default function LabelModal({ isOpen, onClose, orderData, onConfirm, isCo
     }
   };
 
-  // Valider sans imprimer
-  const handleConfirmWithoutPrint = async () => {
-    setError(null);
-
-    if (onConfirm && !isConfirmed) {
-      const confirmSuccess = await onConfirm();
-      if (confirmSuccess) {
-        setIsConfirmed(true);
-        setSuccess('Commande creee');
-        setTimeout(() => {
-          setSuccess(null);
-          onClose();
-        }, 1500);
-      }
-    } else {
-      onClose();
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -262,19 +243,6 @@ export default function LabelModal({ isOpen, onClose, orderData, onConfirm, isCo
               )}
             </button>
           </div>
-          {/* Bouton valider sans imprimer */}
-          {onConfirm && !isConfirmed && (
-            <button
-              onClick={handleConfirmWithoutPrint}
-              disabled={isConfirming || isPrinting}
-              className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-              Valider sans imprimer
-            </button>
-          )}
         </div>
 
         {/* Aide */}
