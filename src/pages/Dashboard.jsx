@@ -42,18 +42,24 @@ export function Dashboard() {
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const firstDayOfMonthStr = firstDayOfMonth.toISOString().split('T')[0];
 
-      // Calculer les 7 derniers jours + 7 jours semaine passée
-      const last7Days = [];
-      const previous7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        last7Days.push(date.toISOString().split('T')[0]);
+      // Calculer le lundi de la semaine courante
+      const dayOfWeek = today.getDay(); // 0 = dimanche, 1 = lundi, ...
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + diffToMonday);
+
+      // Générer Lundi → Dimanche de la semaine courante
+      const weekDays = [];
+      const previousWeekDays = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        weekDays.push(date.toISOString().split('T')[0]);
 
         // Même jour semaine passée
-        const datePrev = new Date(today);
-        datePrev.setDate(datePrev.getDate() - i - 7);
-        previous7Days.push(datePrev.toISOString().split('T')[0]);
+        const datePrev = new Date(monday);
+        datePrev.setDate(monday.getDate() + i - 7);
+        previousWeekDays.push(datePrev.toISOString().split('T')[0]);
       }
 
       // Requêtes en parallèle
@@ -83,12 +89,13 @@ export function Dashboard() {
           .from('clients')
           .select('*', { count: 'exact', head: true })
           .eq('pressing_id', pressing.id),
-        // Commandes des 14 derniers jours (pour CA semaine + semaine passée)
+        // Commandes de la semaine + semaine passée
         supabase
           .from('commandes')
           .select('montant_total, created_at')
           .eq('pressing_id', pressing.id)
-          .gte('created_at', previous7Days[0]),
+          .gte('created_at', previousWeekDays[0])
+          .lte('created_at', weekDays[6] + 'T23:59:59'),
         // 5 dernières commandes
         supabase
           .from('commandes')
@@ -109,8 +116,8 @@ export function Dashboard() {
           .eq('pressing_id', pressing.id)
       ]);
 
-      // Calculer CA par jour (cette semaine + semaine passée)
-      const caParJour = last7Days.map((dateStr, index) => {
+      // Calculer CA par jour (Lundi → Dimanche)
+      const caParJour = weekDays.map((dateStr, index) => {
         // CA cette semaine
         const commandesJour = (commandesRes.data || []).filter(cmd => {
           const cmdDate = cmd.created_at.split('T')[0];
@@ -119,7 +126,7 @@ export function Dashboard() {
         const total = commandesJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
 
         // CA semaine passée (même jour)
-        const datePrevStr = previous7Days[index];
+        const datePrevStr = previousWeekDays[index];
         const commandesPrev = (commandesRes.data || []).filter(cmd => {
           const cmdDate = cmd.created_at.split('T')[0];
           return cmdDate === datePrevStr;
@@ -173,18 +180,24 @@ export function Dashboard() {
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
 
-      // Calculer les 7 jours de la semaine sélectionnée
-      const selected7Days = [];
-      const previous7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i + (offset * 7));
-        selected7Days.push(date.toISOString().split('T')[0]);
+      // Calculer le lundi de la semaine courante
+      const dayOfWeek = today.getDay(); // 0 = dimanche, 1 = lundi, ...
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + diffToMonday + (offset * 7));
 
-        // Même jour semaine passée (par rapport à la semaine sélectionnée)
-        const datePrev = new Date(today);
-        datePrev.setDate(datePrev.getDate() - i + (offset * 7) - 7);
-        previous7Days.push(datePrev.toISOString().split('T')[0]);
+      // Générer Lundi → Dimanche de la semaine sélectionnée
+      const weekDays = [];
+      const previousWeekDays = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        weekDays.push(date.toISOString().split('T')[0]);
+
+        // Même jour semaine passée
+        const datePrev = new Date(monday);
+        datePrev.setDate(monday.getDate() + i - 7);
+        previousWeekDays.push(datePrev.toISOString().split('T')[0]);
       }
 
       // Récupérer les commandes de la période
@@ -192,18 +205,18 @@ export function Dashboard() {
         .from('commandes')
         .select('montant_total, created_at')
         .eq('pressing_id', pressing.id)
-        .gte('created_at', previous7Days[0])
-        .lte('created_at', selected7Days[6] + 'T23:59:59');
+        .gte('created_at', previousWeekDays[0])
+        .lte('created_at', weekDays[6] + 'T23:59:59');
 
-      // Calculer CA par jour
-      const caParJour = selected7Days.map((dateStr, index) => {
+      // Calculer CA par jour (Lundi → Dimanche)
+      const caParJour = weekDays.map((dateStr, index) => {
         const commandesJour = (commandesData || []).filter(cmd => {
           const cmdDate = cmd.created_at.split('T')[0];
           return cmdDate === dateStr;
         });
         const total = commandesJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total || 0), 0);
 
-        const datePrevStr = previous7Days[index];
+        const datePrevStr = previousWeekDays[index];
         const commandesPrev = (commandesData || []).filter(cmd => {
           const cmdDate = cmd.created_at.split('T')[0];
           return cmdDate === datePrevStr;
