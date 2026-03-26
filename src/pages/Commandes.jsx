@@ -18,12 +18,13 @@ export function Commandes() {
   const { showSuccess, showError } = useNotification();
   const [searchParams] = useSearchParams();
   const filterStatut = searchParams.get('statut');
+  const expandParam = searchParams.get('expand');
 
   const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState(filterStatut || 'all');
-  const [expandedCommandeId, setExpandedCommandeId] = useState(null);
+  const [expandedCommandeId, setExpandedCommandeId] = useState(expandParam || null);
 
   // Modal avoir
   const [avoirModalOpen, setAvoirModalOpen] = useState(false);

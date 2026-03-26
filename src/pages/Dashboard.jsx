@@ -516,7 +516,7 @@ export function Dashboard() {
               return (
                 <button
                   key={cmd.id}
-                  onClick={() => navigate(`/commandes/${cmd.id}`)}
+                  onClick={() => navigate(`/commandes?expand=${cmd.id}`)}
                   className="w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
                 >
                   <div className="flex-1 min-w-0">
