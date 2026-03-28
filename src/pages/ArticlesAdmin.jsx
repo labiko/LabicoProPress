@@ -314,26 +314,26 @@ export function ArticlesAdmin() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                             autoFocus
                           />
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editPrix}
+                            onChange={(e) => setEditPrix(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            placeholder="Prix (EUR)"
+                          />
                           <div className="flex gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editPrix}
-                              onChange={(e) => setEditPrix(e.target.value)}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                              placeholder="Prix"
-                            />
                             <button
                               onClick={() => setEditingArticle(null)}
-                              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm"
+                              className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
                             >
                               Annuler
                             </button>
                             <button
                               onClick={saveArticle}
-                              className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm"
+                              className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium"
                             >
-                              OK
+                              Enregistrer
                             </button>
                           </div>
                         </div>
@@ -382,25 +382,25 @@ export function ArticlesAdmin() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         autoFocus
                       />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={newArticlePrix}
+                        onChange={(e) => setNewArticlePrix(e.target.value)}
+                        placeholder="Prix (EUR)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
                       <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={newArticlePrix}
-                          onChange={(e) => setNewArticlePrix(e.target.value)}
-                          placeholder="Prix (EUR)"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
                         <button
                           onClick={() => setShowAddArticle(null)}
-                          className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+                          className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
                         >
                           Annuler
                         </button>
                         <button
                           onClick={() => addArticle(cat.id)}
                           disabled={!newArticleNom.trim() || !newArticlePrix}
-                          className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm disabled:opacity-50"
+                          className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
                         >
                           Ajouter
                         </button>
