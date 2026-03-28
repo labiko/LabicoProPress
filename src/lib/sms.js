@@ -8,38 +8,70 @@ export const SMS_TYPES = {
   REMERCIEMENT: 'remerciement',
 };
 
-// Templates de messages
+/**
+ * Extrait le numero court (sans l'annee) pour les SMS
+ * Ex: "2026-0053-LP" -> "#0053-LP"
+ */
+function numeroSMSCourt(numeroComplet) {
+  if (!numeroComplet) return '';
+  // Format: AAAA-NNNN-XX -> on garde NNNN-XX
+  const parts = numeroComplet.split('-');
+  if (parts.length === 3) {
+    return `#${parts[1]}-${parts[2]}`;
+  }
+  return `#${numeroComplet}`;
+}
+
+/**
+ * Abrevie une adresse pour economiser des caracteres SMS
+ */
+function abregerAdresse(adresse) {
+  if (!adresse) return '';
+  return adresse
+    .replace(/Avenue/gi, 'Av.')
+    .replace(/Boulevard/gi, 'Bd')
+    .replace(/Rue/gi, 'R.')
+    .replace(/Place/gi, 'Pl.')
+    .replace(/Saint-/gi, 'St-')
+    .replace(/Sainte-/gi, 'Ste-');
+}
+
+// Templates de messages (version compacte ~150 car.)
 const TEMPLATES = {
   [SMS_TYPES.COMMANDE_PRETE]: (data) => {
-    let msg = `${data.nomPressing}\n\nBonjour ${data.nomClient || ''},\n\nVotre commande n${data.numeroCommande} est prete !`;
+    const numCourt = numeroSMSCourt(data.numeroCommande);
+    let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nCommande ${numCourt} prete!`;
     if (data.adressePressing) {
-      msg += `\n\nAdresse: ${data.adressePressing}`;
+      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
     }
-    msg += `\n\nMerci de votre confiance.`;
+    msg += `\nMerci de votre confiance.`;
     return msg;
   },
 
   [SMS_TYPES.RAPPEL_RECUPERATION]: (data) => {
-    let msg = `${data.nomPressing}\n\nBonjour ${data.nomClient || ''},\n\nRappel: Votre commande n${data.numeroCommande} vous attend depuis ${data.joursAttente} jour(s).`;
+    const numCourt = numeroSMSCourt(data.numeroCommande);
+    let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nRappel: Commande ${numCourt} vous attend depuis ${data.joursAttente}j.`;
     if (data.adressePressing) {
-      msg += `\n\nAdresse: ${data.adressePressing}`;
+      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
     }
-    msg += `\n\nMerci.`;
+    msg += `\nMerci.`;
     return msg;
   },
 
   [SMS_TYPES.COMMANDE_CREEE]: (data) => {
     const prix = parseFloat(data.montantTotal || 0).toFixed(2);
-    let msg = `${data.nomPressing}\n\nBonjour ${data.nomClient || ''},\n\nVotre commande n${data.numeroCommande} a bien ete enregistree.\n\n${data.nbVetements} article(s) - ${prix} EUR`;
+    const numCourt = numeroSMSCourt(data.numeroCommande);
+    const nbArt = data.nbVetements === 1 ? '1 article' : `${data.nbVetements} articles`;
+    let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nCommande ${numCourt} enregistree\n${nbArt} - ${prix}€`;
     if (data.adressePressing) {
-      msg += `\n\nAdresse: ${data.adressePressing}`;
+      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
     }
-    msg += `\n\nNous vous previendrons des qu'elle sera prete.\n\nMerci !`;
+    msg += `\nNous vous previendrons. Merci!`;
     return msg;
   },
 
   [SMS_TYPES.REMERCIEMENT]: (data) =>
-    `${data.nomPressing}\n\nMerci ${data.nomClient || ''} pour votre visite !\n\nA tres bientot.`,
+    `${data.nomPressing}\nMerci ${data.nomClient || ''} pour votre visite!\nA tres bientot.`,
 };
 
 // Configuration Brevo

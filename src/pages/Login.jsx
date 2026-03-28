@@ -152,7 +152,7 @@ export function Login() {
             <button
               type="button"
               onClick={() => {
-                setTelephone('0160609090');
+                setTelephone('0650053183');
                 setPassword('miracle2024');
               }}
               className="text-gray-300 hover:text-gray-400 text-xs"
