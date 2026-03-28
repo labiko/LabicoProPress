@@ -42,7 +42,7 @@ const TEMPLATES = {
     const numCourt = numeroSMSCourt(data.numeroCommande);
     let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nCommande ${numCourt} prete!`;
     if (data.adressePressing) {
-      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
+      msg += `\n${abregerAdresse(data.adressePressing)}`;
     }
     msg += `\nMerci de votre confiance.`;
     return msg;
@@ -52,7 +52,7 @@ const TEMPLATES = {
     const numCourt = numeroSMSCourt(data.numeroCommande);
     let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nRappel: Commande ${numCourt} vous attend depuis ${data.joursAttente}j.`;
     if (data.adressePressing) {
-      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
+      msg += `\n${abregerAdresse(data.adressePressing)}`;
     }
     msg += `\nMerci.`;
     return msg;
@@ -64,7 +64,7 @@ const TEMPLATES = {
     const nbArt = data.nbVetements === 1 ? '1 article' : `${data.nbVetements} articles`;
     let msg = `${data.nomPressing}\nBonjour ${data.nomClient || ''},\nCommande ${numCourt} enregistree\n${nbArt} - ${prix}€`;
     if (data.adressePressing) {
-      msg += `\n📍 ${abregerAdresse(data.adressePressing)}`;
+      msg += `\n${abregerAdresse(data.adressePressing)}`;
     }
     msg += `\nNous vous previendrons. Merci!`;
     return msg;

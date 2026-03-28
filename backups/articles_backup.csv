@@ -1,0 +1,89 @@
+id,categorie_id,nom,prix,pressing_id
+pantalon,basiques,Pantalon,10.50,d4c968d9-0af7-4455-becb-54a777f160ec
+jupe_simple,basiques,Jupe simple,12.45,d4c968d9-0af7-4455-becb-54a777f160ec
+veste,basiques,Veste,12.00,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_simple,basiques,Robe simple,14.85,d4c968d9-0af7-4455-becb-54a777f160ec
+chemise_pliee,vetements,Chemise pliee,8.25,d4c968d9-0af7-4455-becb-54a777f160ec
+tshirt_mc,vetements,T-shirt manches courtes,5.85,d4c968d9-0af7-4455-becb-54a777f160ec
+tshirt_ml,vetements,T-shirt manches longues,7.35,d4c968d9-0af7-4455-becb-54a777f160ec
+pull,vetements,Pull,8.80,d4c968d9-0af7-4455-becb-54a777f160ec
+gilet,vetements,Gilet,9.60,d4c968d9-0af7-4455-becb-54a777f160ec
+echarpe,vetements,Echarpe,10.43,d4c968d9-0af7-4455-becb-54a777f160ec
+chemisier_simple,vetements,Chemisier simple,8.93,d4c968d9-0af7-4455-becb-54a777f160ec
+chemisier_delicat,vetements,Chemisier delicat,15.45,d4c968d9-0af7-4455-becb-54a777f160ec
+foulard,vetements,Foulard,11.85,d4c968d9-0af7-4455-becb-54a777f160ec
+cravate,vetements,Cravate,11.10,d4c968d9-0af7-4455-becb-54a777f160ec
+vetement_enfant,vetements,Vetement enfant,10.35,d4c968d9-0af7-4455-becb-54a777f160ec
+jupe_plissee,vetements,Jupe plissee,31.50,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_soiree_courte,vetements,Robe de soiree courte,34.50,d4c968d9-0af7-4455-becb-54a777f160ec
+cat_1774686966602_1774686977099,cat_1774686966602,Test2,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+manteau,manteaux,Manteau,20.85,d4c968d9-0af7-4455-becb-54a777f160ec
+anorak,manteaux,Anorak,20.00,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_courte,manteaux,Doudoune courte,18.90,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_longue,manteaux,Doudoune longue,22.50,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_mariee_simple,ceremonie,Robe mariee simple,75.00,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_mariee_volume,ceremonie,Robe mariee volume,109.00,d4c968d9-0af7-4455-becb-54a777f160ec
+voile_mariage,ceremonie,Voile mariage,11.00,d4c968d9-0af7-4455-becb-54a777f160ec
+corset_mariee,ceremonie,Corset mariee,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+jupon,ceremonie,Jupon,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+jupe_mariage,ceremonie,Jupe mariage,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+aube,ceremonie,Aube,29.00,d4c968d9-0af7-4455-becb-54a777f160ec
+anorak_ski,ski,Anorak - Parka,18.00,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_duvet_courte,ski,Doudoune duvet courte,21.00,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_duvet_longue,ski,Doudoune duvet longue,25.00,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_synth_courte,ski,Doudoune synth courte,17.00,d4c968d9-0af7-4455-becb-54a777f160ec
+doudoune_synth_longue,ski,Doudoune synth longue,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+pantalon_ski,ski,Pantalon ski,16.00,d4c968d9-0af7-4455-becb-54a777f160ec
+blouson_ski,ski,Blouson ski,17.00,d4c968d9-0af7-4455-becb-54a777f160ec
+combinaison_ski,ski,Combinaison ski,22.00,d4c968d9-0af7-4455-becb-54a777f160ec
+couverture_simple,couchage,Couverture simple,15.00,d4c968d9-0af7-4455-becb-54a777f160ec
+couverture_epaisse,couchage,Couverture epaisse,21.00,d4c968d9-0af7-4455-becb-54a777f160ec
+couette_synth_1p,couchage,Couette synth 1 place,24.00,d4c968d9-0af7-4455-becb-54a777f160ec
+couette_synth_2p,couchage,Couette synth 2 places,29.00,d4c968d9-0af7-4455-becb-54a777f160ec
+dessus_lit,couchage,Dessus lit,24.00,d4c968d9-0af7-4455-becb-54a777f160ec
+couette_plume,couchage,Couette plume,36.00,d4c968d9-0af7-4455-becb-54a777f160ec
+sac_couchage_synth,couchage,Sac couchage synth,24.50,d4c968d9-0af7-4455-becb-54a777f160ec
+sac_couchage_plume,couchage,Sac couchage plume,34.50,d4c968d9-0af7-4455-becb-54a777f160ec
+housse_canape,ameublement,Housse canape,47.00,d4c968d9-0af7-4455-becb-54a777f160ec
+housse_coussin,ameublement,Housse coussin,5.60,d4c968d9-0af7-4455-becb-54a777f160ec
+voilage,ameublement,Voilage,21.00,d4c968d9-0af7-4455-becb-54a777f160ec
+rideau_simple,ameublement,Rideau simple,28.50,d4c968d9-0af7-4455-becb-54a777f160ec
+rideau_double,ameublement,Rideau double,39.50,d4c968d9-0af7-4455-becb-54a777f160ec
+nappe_6_12,linge_table,Nappe 6-12 pers,15.10,d4c968d9-0af7-4455-becb-54a777f160ec
+nappe_14_plus,linge_table,Nappe 14+ pers,23.00,d4c968d9-0af7-4455-becb-54a777f160ec
+nappe_brodee_6_12,linge_table,Nappe brodee 6-12 pers,21.00,d4c968d9-0af7-4455-becb-54a777f160ec
+nappe_brodee_14_plus,linge_table,Nappe brodee 14+ pers,28.00,d4c968d9-0af7-4455-becb-54a777f160ec
+serviette_table,linge_table,Serviette table,2.80,d4c968d9-0af7-4455-becb-54a777f160ec
+torchon,linge_table,Torchon,2.80,d4c968d9-0af7-4455-becb-54a777f160ec
+drap_bain,linge_bain,Drap de bain,5.60,d4c968d9-0af7-4455-becb-54a777f160ec
+serviette_eponge,linge_bain,Serviette eponge,4.10,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_chambre,linge_bain,Robe de chambre,13.00,d4c968d9-0af7-4455-becb-54a777f160ec
+drap,linge_lit,Drap,4.95,d4c968d9-0af7-4455-becb-54a777f160ec
+housse_couette,linge_lit,Housse couette,9.80,d4c968d9-0af7-4455-becb-54a777f160ec
+oreiller,linge_lit,Oreiller,14.50,d4c968d9-0af7-4455-becb-54a777f160ec
+taie_oreiller,linge_lit,Taie oreiller,3.90,d4c968d9-0af7-4455-becb-54a777f160ec
+taie_traversin,linge_lit,Taie traversin,3.90,d4c968d9-0af7-4455-becb-54a777f160ec
+alese,linge_lit,Alese,9.90,d4c968d9-0af7-4455-becb-54a777f160ec
+tablier,travail,Tablier,2.70,d4c968d9-0af7-4455-becb-54a777f160ec
+pantalon_travail,travail,Pantalon travail,3.80,d4c968d9-0af7-4455-becb-54a777f160ec
+veste_travail,travail,Veste travail,3.80,d4c968d9-0af7-4455-becb-54a777f160ec
+blouse_travail,travail,Blouse travail,4.70,d4c968d9-0af7-4455-becb-54a777f160ec
+combinaison_travail,travail,Combinaison travail,5.80,d4c968d9-0af7-4455-becb-54a777f160ec
+pliage_chemise,soins_textiles,Pliage chemise,1.00,d4c968d9-0af7-4455-becb-54a777f160ec
+appretage,soins_textiles,Appretage,1.90,d4c968d9-0af7-4455-becb-54a777f160ec
+sur_devis,impermeabilisant,Sur devis,2.60,d4c968d9-0af7-4455-becb-54a777f160ec
+anti_acariens,impermeabilisant,Anti-acariens,5.20,d4c968d9-0af7-4455-becb-54a777f160ec
+anti_mites,impermeabilisant,Anti-mites,5.20,d4c968d9-0af7-4455-becb-54a777f160ec
+tapis,ameublement,Tapis,23.50,d4c968d9-0af7-4455-becb-54a777f160ec
+tapis_peau,ameublement,Tapis peau,41.00,d4c968d9-0af7-4455-becb-54a777f160ec
+manteau_impermeable,basiques,Manteau / Impermeable,20.85,d4c968d9-0af7-4455-becb-54a777f160ec
+housse_5sec,emballages,Housse 5 sec,5.80,d4c968d9-0af7-4455-becb-54a777f160ec
+gaine_recyclable,emballages,Gaine recyclable,0.15,d4c968d9-0af7-4455-becb-54a777f160ec
+forfait_20_chemises,forfaits,"20 chemises, polos ou tee-shirts",67.00,d4c968d9-0af7-4455-becb-54a777f160ec
+robe_soiree_longue,vetements,Robe de soiree longue,42.00,d4c968d9-0af7-4455-becb-54a777f160ec
+blouson,vetements,Blouson,22.35,d4c968d9-0af7-4455-becb-54a777f160ec
+djellaba,vetements,Djellaba,24.00,d4c968d9-0af7-4455-becb-54a777f160ec
+manteau_fourrure,vetements,Manteau fourrure,26.70,d4c968d9-0af7-4455-becb-54a777f160ec
+veste_fourrure,vetements,Veste fourrure,21.75,d4c968d9-0af7-4455-becb-54a777f160ec
+impermeabilisant_devis,impermeabilisant,Sur devis a partir de,2.60,d4c968d9-0af7-4455-becb-54a777f160ec
+housse_5ssec,emballages,Housse 5ssec reutilisable,5.80,d4c968d9-0af7-4455-becb-54a777f160ec

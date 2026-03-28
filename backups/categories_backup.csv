@@ -1,0 +1,17 @@
+id,nom,icon,ordre,pressing_id
+basiques,Basiques,"",1,d4c968d9-0af7-4455-becb-54a777f160ec
+vetements,Vetements,"",2,d4c968d9-0af7-4455-becb-54a777f160ec
+manteaux,Manteaux et Vestes,"",3,d4c968d9-0af7-4455-becb-54a777f160ec
+ceremonie,Ceremonie,"",4,d4c968d9-0af7-4455-becb-54a777f160ec
+ski,Vetements de ski,"",5,d4c968d9-0af7-4455-becb-54a777f160ec
+couchage,Couchage,"",6,d4c968d9-0af7-4455-becb-54a777f160ec
+ameublement,Ameublement,"",7,d4c968d9-0af7-4455-becb-54a777f160ec
+linge_table,Linge de table,"",8,d4c968d9-0af7-4455-becb-54a777f160ec
+linge_bain,Linge de bain,"",9,d4c968d9-0af7-4455-becb-54a777f160ec
+linge_lit,Linge de lit,"",10,d4c968d9-0af7-4455-becb-54a777f160ec
+travail,Vetements de travail,"",11,d4c968d9-0af7-4455-becb-54a777f160ec
+soins_textiles,Soins textiles,"",12,d4c968d9-0af7-4455-becb-54a777f160ec
+impermeabilisant,Impermeabilisant,"",13,d4c968d9-0af7-4455-becb-54a777f160ec
+emballages,Emballages,"",14,d4c968d9-0af7-4455-becb-54a777f160ec
+forfaits,Forfaits,"",15,d4c968d9-0af7-4455-becb-54a777f160ec
+cat_1774686966602,Toto,,16,d4c968d9-0af7-4455-becb-54a777f160ec

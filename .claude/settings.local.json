@@ -27,7 +27,12 @@
       "Bash(node scripts/generate-icons.js:*)",
       "Bash(node:*)",
       "Bash(npx vercel:*)",
-      "Bash(curl -X POST \"https://api.brevo.com/v3/transactionalSMS/sms\" -H \"accept: application/json\" -H \"api-key: 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\" -H \"content-type: application/json\" -d \"{\"\"sender\"\": \"\"Pressing\"\", \"\"recipient\"\": \"\"33620951645\"\", \"\"content\"\": \"\"Test SMS Brevo - Votre commande est prete!\"\", \"\"type\"\": \"\"transactional\"\"}\")"
+      "Bash(curl -X POST \"https://api.brevo.com/v3/transactionalSMS/sms\" -H \"accept: application/json\" -H \"api-key: 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\" -H \"content-type: application/json\" -d \"{\"\"sender\"\": \"\"Pressing\"\", \"\"recipient\"\": \"\"33620951645\"\", \"\"content\"\": \"\"Test SMS Brevo - Votre commande est prete!\"\", \"\"type\"\": \"\"transactional\"\"}\")",
+      "Bash(git reset:*)",
+      "Bash(systeminfo:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Get-ComputerInfo | Select-Object WindowsVersion, OsName, OsArchitecture, WindowsBuildLabEx\")",
+      "Bash(curl:*)"
     ]
   }
 }
