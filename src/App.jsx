@@ -10,6 +10,7 @@ import { ClientForm } from './pages/ClientForm';
 import { Commandes } from './pages/Commandes';
 import { CommandeForm } from './pages/CommandeForm';
 import { Parametres } from './pages/Parametres';
+import { ArticlesAdmin } from './pages/ArticlesAdmin';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -118,6 +119,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Parametres />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/parametres/articles"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <ArticlesAdmin />
             </Layout>
           </ProtectedRoute>
         }

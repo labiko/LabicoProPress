@@ -58,8 +58,8 @@ export function CommandeForm() {
   async function loadTarifs() {
     try {
       const [catRes, artRes] = await Promise.all([
-        supabase.from('categories').select('*').order('ordre'),
-        supabase.from('articles').select('*')
+        supabase.from('categories').select('*').eq('pressing_id', pressing.id).order('ordre'),
+        supabase.from('articles').select('*').eq('pressing_id', pressing.id)
       ]);
       if (catRes.data) setCategories(catRes.data);
       if (artRes.data) setArticles(artRes.data);

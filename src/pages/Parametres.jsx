@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { supabase } from '../lib/supabase';
+import { APP_VERSION } from '../version';
 
 export function Parametres() {
+  const navigate = useNavigate();
   const { pressing, logout } = useAuth();
   const { showSuccess, showError } = useNotification();
 
@@ -121,6 +124,25 @@ export function Parametres() {
         </div>
       </div>
 
+      {/* Gestion des articles */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Articles et tarifs</h3>
+            <p className="text-sm text-gray-500 mt-1">Gerer vos articles, categories et prix</p>
+          </div>
+          <button
+            onClick={() => navigate('/parametres/articles')}
+            className="flex items-center gap-2 bg-primary-50 text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-primary-100 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Gerer
+          </button>
+        </div>
+      </div>
+
       <button
         onClick={handleSave}
         disabled={loading}
@@ -153,7 +175,7 @@ export function Parametres() {
 
       {/* Version */}
       <p className="text-center text-xs text-gray-400">
-        LabicoProPress v1.0.0
+        LabicoProPress v{APP_VERSION}
       </p>
     </div>
   );
